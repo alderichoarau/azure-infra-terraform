@@ -1,4 +1,4 @@
-variable "owner"               { type = string }
+variable "owner" { type = string }
 variable "resource_group_name" { type = string }
-variable "service_plan_id"     { type = string }
-variable "tags"                { type = map(string) }
+variable "service_plan_id" { type = string }
+variable "tags" { type = map(string) }
