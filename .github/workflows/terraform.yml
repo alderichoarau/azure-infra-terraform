@@ -1,0 +1,131 @@
+name: Terraform
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "terraform/**"
+  pull_request:
+    branches: [main]
+    paths:
+      - "terraform/**"
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "Action to execute"
+        required: true
+        type: choice
+        options:
+          - plan
+          - apply
+          - destroy
+
+permissions:
+  id-token: write    # OIDC
+  contents: read
+  pull-requests: write  # to post plan output as PR comment
+
+env:
+  ARM_USE_OIDC:        "true"
+  ARM_CLIENT_ID:       ${{ secrets.AZURE_CLIENT_ID }}
+  ARM_TENANT_ID:       ${{ secrets.AZURE_TENANT_ID }}
+  ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+  TF_WORKING_DIR:      terraform
+
+jobs:
+  terraform:
+    name: Terraform ${{ github.event_name == 'pull_request' && 'Plan' || inputs.action || 'Apply' }}
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: terraform
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "~> 1.9"
+
+      - name: Azure Login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id:       ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id:       ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Terraform Init
+        run: |
+          terraform init \
+            -backend-config="resource_group_name=${{ secrets.TF_BACKEND_RG }}" \
+            -backend-config="storage_account_name=${{ secrets.TF_BACKEND_SA }}" \
+            -backend-config="container_name=tfstate" \
+            -backend-config="key=${{ secrets.AZURE_OWNER }}.terraform.tfstate"
+
+      - name: Terraform Format Check
+        run: terraform fmt -check -recursive
+        continue-on-error: true
+
+      - name: Terraform Validate
+        run: terraform validate
+
+      # ── Plan (PR or workflow_dispatch plan) ────────────────────────────────
+      - name: Terraform Plan
+        if: github.event_name == 'pull_request' || inputs.action == 'plan'
+        id: plan
+        run: |
+          terraform plan \
+            -var="owner=${{ secrets.AZURE_OWNER }}" \
+            -var="resource_group_name=rg-${{ secrets.AZURE_OWNER }}" \
+            -out=tfplan \
+            -no-color 2>&1 | tee plan.txt
+        continue-on-error: true
+
+      - name: Post Plan as PR Comment
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const plan = fs.readFileSync('terraform/plan.txt', 'utf8');
+            const maxLen = 65000;
+            const body = `## 🔍 Terraform Plan\n\n\`\`\`\n${plan.slice(0, maxLen)}${plan.length > maxLen ? '\n... (truncated)' : ''}\n\`\`\``;
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body
+            });
+
+      - name: Fail if Plan failed
+        if: github.event_name == 'pull_request' && steps.plan.outcome == 'failure'
+        run: exit 1
+
+      # ── Apply (merge to main or workflow_dispatch apply) ───────────────────
+      - name: Terraform Apply
+        if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || inputs.action == 'apply'
+        run: |
+          terraform apply \
+            -var="owner=${{ secrets.AZURE_OWNER }}" \
+            -var="resource_group_name=rg-${{ secrets.AZURE_OWNER }}" \
+            -auto-approve
+
+      # ── Destroy (workflow_dispatch destroy only) ───────────────────────────
+      - name: Terraform Destroy
+        if: inputs.action == 'destroy'
+        run: |
+          terraform destroy \
+            -var="owner=${{ secrets.AZURE_OWNER }}" \
+            -var="resource_group_name=rg-${{ secrets.AZURE_OWNER }}" \
+            -auto-approve
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## Terraform — ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Owner** : ${{ secrets.AZURE_OWNER }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Branch** : ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Action** : ${{ github.event_name == 'pull_request' && 'plan' || inputs.action || 'apply' }}" >> $GITHUB_STEP_SUMMARY

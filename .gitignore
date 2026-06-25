@@ -1,0 +1,24 @@
+# ── Editors ───────────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+
+# ── Terraform ─────────────────────────────────────────────────────────────────
+**/.terraform/
+*.tfstate
+*.tfstate.backup
+crash.log
+crash.*.log
+*.tfplan
+secret.tfvars
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Keep lock file (pins provider versions)
+!**/.terraform.lock.hcl
+
+# ── OS ────────────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
