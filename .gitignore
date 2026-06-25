@@ -19,6 +19,9 @@ override.tf.json
 # Keep lock file (pins provider versions)
 !**/.terraform.lock.hcl
 
+# Local backend config (contains storage account name — never commit)
+backend.hcl
+
 # ── OS ────────────────────────────────────────────────────────────────────────
 .DS_Store
 Thumbs.db
