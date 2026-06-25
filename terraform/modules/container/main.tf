@@ -11,7 +11,7 @@ resource "azurerm_container_group" "aci" {
 
   container {
     name   = "nginx"
-    image  = "nginx:latest"
+    image  = "nginx:1.27-alpine"
     cpu    = 0.5
     memory = 0.5
 

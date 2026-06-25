@@ -10,7 +10,7 @@ resource "azurerm_storage_account" "sa" {
   account_kind             = "StorageV2"
   min_tls_version          = "TLS1_2"
 
-  # Required for the public api-config container
+  # checkov:skip=CKV_AZURE_59: api-config container is intentionally public (static config blobs)
   allow_nested_items_to_be_public = true
 
   tags = var.tags

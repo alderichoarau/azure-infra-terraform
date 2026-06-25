@@ -28,7 +28,7 @@ env:
 
 jobs:
   terraform:
-    name: Terraform ${{ github.event_name == 'pull_request' && 'Plan' || inputs.action || 'Apply' }}
+    name: Terraform ${{ inputs.action }}
     runs-on: ubuntu-latest
 
     defaults:
@@ -67,39 +67,17 @@ jobs:
       - name: Terraform Validate
         run: terraform validate
 
-      # ── Plan (PR or workflow_dispatch plan) ────────────────────────────────
+      # ── Plan (workflow_dispatch plan) ─────────────────────────────────────────
       - name: Terraform Plan
-        if: github.event_name == 'pull_request' || inputs.action == 'plan'
-        id: plan
+        if: inputs.action == 'plan'
         run: |
           terraform plan \
             -var="owner=${{ secrets.AZURE_OWNER }}" \
             -var="resource_group_name=${{ secrets.AZURE_RG_NAME }}" \
             -out=tfplan \
-            -no-color 2>&1 | tee plan.txt
-        continue-on-error: true
+            -no-color
 
-      - name: Post Plan as PR Comment
-        if: github.event_name == 'pull_request'
-        uses: actions/github-script@v9
-        with:
-          script: |
-            const fs = require('fs');
-            const plan = fs.readFileSync('terraform/plan.txt', 'utf8');
-            const maxLen = 65000;
-            const body = `## 🔍 Terraform Plan\n\n\`\`\`\n${plan.slice(0, maxLen)}${plan.length > maxLen ? '\n... (truncated)' : ''}\n\`\`\``;
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body
-            });
-
-      - name: Fail if Plan failed
-        if: github.event_name == 'pull_request' && steps.plan.outcome == 'failure'
-        run: exit 1
-
-      # ── Apply (merge to main or workflow_dispatch apply) ───────────────────
+      # ── Apply (workflow_dispatch apply) ───────────────────────────────────────
       - name: Terraform Apply
         if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || inputs.action == 'apply'
         run: |

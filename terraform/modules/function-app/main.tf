@@ -14,12 +14,17 @@ resource "azurerm_storage_account" "fn_storage" {
 }
 
 resource "azurerm_linux_function_app" "fn" {
-  name                       = "fn-${var.owner}-tf"
-  resource_group_name        = var.resource_group_name
-  location                   = var.location
-  service_plan_id            = var.service_plan_id
-  storage_account_name       = azurerm_storage_account.fn_storage.name
-  storage_account_access_key = azurerm_storage_account.fn_storage.primary_access_key
+  name                        = "fn-${var.owner}-tf"
+  resource_group_name         = var.resource_group_name
+  location                    = var.location
+  service_plan_id             = var.service_plan_id
+  storage_account_name        = azurerm_storage_account.fn_storage.name
+  storage_uses_managed_identity = true
+  https_only                  = true
+
+  identity {
+    type = "SystemAssigned"
+  }
 
   site_config {
     application_stack {
@@ -28,4 +33,10 @@ resource "azurerm_linux_function_app" "fn" {
   }
 
   tags = var.tags
+}
+
+resource "azurerm_role_assignment" "fn_storage_blob" {
+  scope                = azurerm_storage_account.fn_storage.id
+  role_definition_name = "Storage Blob Data Owner"
+  principal_id         = azurerm_linux_function_app.fn.identity[0].principal_id
 }
