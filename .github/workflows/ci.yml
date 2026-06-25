@@ -1,5 +1,4 @@
 name: Terraform CI
-
 run-name: "CI · fmt + validate · ${{ github.ref_name }}"
 
 on:
@@ -9,8 +8,7 @@ on:
     branches: [main]
 
 jobs:
-  terraform:
-    name: Validate
+  validate:
     runs-on: ubuntu-latest
 
     defaults:
