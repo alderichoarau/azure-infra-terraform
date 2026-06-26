@@ -15,9 +15,8 @@ on:
           - destroy
 
 permissions:
-  id-token: write    # OIDC
+  id-token: write  # OIDC token for Azure login
   contents: read
-  pull-requests: write  # to post plan output as PR comment
 
 env:
   ARM_USE_OIDC:        "true"

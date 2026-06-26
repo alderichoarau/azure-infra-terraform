@@ -7,6 +7,9 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read  # default minimal — jobs override as needed
+
 jobs:
   # ── Validate ────────────────────────────────────────────────────────────────
   validate:
@@ -16,7 +19,7 @@ jobs:
       run:
         working-directory: terraform
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: hashicorp/setup-terraform@v4
         with:
