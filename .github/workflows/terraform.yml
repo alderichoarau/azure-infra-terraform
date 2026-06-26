@@ -75,6 +75,35 @@ jobs:
             -out=tfplan \
             -no-color
 
+      - name: Setup Infracost
+        if: inputs.action == 'plan'
+        uses: infracost/actions/setup@v3
+        with:
+          api-key: ${{ secrets.INFRACOST_API_KEY }}
+
+      - name: Infracost — Cost estimate
+        if: inputs.action == 'plan'
+        run: |
+          terraform show -json tfplan > tfplan.json
+          infracost breakdown \
+            --path tfplan.json \
+            --format json \
+            --out-file infracost.json
+          infracost output \
+            --path infracost.json \
+            --format table \
+            | tee infracost-summary.txt
+
+      - name: Upload cost artifacts
+        if: inputs.action == 'plan'
+        uses: actions/upload-artifact@v4
+        with:
+          name: infracost-${{ github.run_id }}
+          path: |
+            terraform/infracost.json
+            terraform/infracost-summary.txt
+          retention-days: 30
+
       # ── Apply (workflow_dispatch apply) ───────────────────────────────────────
       - name: Terraform Apply
         if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || inputs.action == 'apply'
