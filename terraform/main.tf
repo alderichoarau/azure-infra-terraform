@@ -56,9 +56,20 @@ module "app_service" {
   tags                = local.tags
 }
 
-# checkov:skip=CKV_AZURE_13,CKV_AZURE_16,CKV_AZURE_17,CKV_AZURE_18,CKV_AZURE_63,CKV_AZURE_65,CKV_AZURE_66,CKV_AZURE_71,CKV_AZURE_78,CKV_AZURE_88,CKV_AZURE_213,CKV_AZURE_222: ressource de test Infracost uniquement
 # Second App Service — added to validate Infracost cost estimation on PR
 resource "azurerm_linux_web_app" "app_secondary" {
+  # checkov:skip=CKV_AZURE_13: ressource de test Infracost uniquement
+  # checkov:skip=CKV_AZURE_16: ressource de test Infracost uniquement
+  # checkov:skip=CKV_AZURE_17: ressource de test Infracost uniquement
+  # checkov:skip=CKV_AZURE_18: ressource de test Infracost uniquement
+  # checkov:skip=CKV_AZURE_63: ressource de test Infracost uniquement
+  # checkov:skip=CKV_AZURE_65: ressource de test Infracost uniquement
+  # checkov:skip=CKV_AZURE_66: ressource de test Infracost uniquement
+  # checkov:skip=CKV_AZURE_71: ressource de test Infracost uniquement
+  # checkov:skip=CKV_AZURE_78: ressource de test Infracost uniquement
+  # checkov:skip=CKV_AZURE_88: ressource de test Infracost uniquement
+  # checkov:skip=CKV_AZURE_213: ressource de test Infracost uniquement
+  # checkov:skip=CKV_AZURE_222: ressource de test Infracost uniquement
   name                = "app-${var.owner}-secondary-tf"
   resource_group_name = data.azurerm_resource_group.rg.name
   location            = data.azurerm_service_plan.shared.location

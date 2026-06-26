@@ -33,8 +33,8 @@ resource "azurerm_subnet" "backend" {
   address_prefixes     = ["10.0.2.0/24"]
 }
 
-# checkov:skip=CKV_AZURE_160: port 80 ouvert intentionnellement pour le conteneur nginx de démonstration TP
 resource "azurerm_network_security_group" "nsg" {
+  # checkov:skip=CKV_AZURE_160: port 80 ouvert intentionnellement pour le conteneur nginx de démonstration TP
   name                = "nsg-frontend-${var.owner}-tf"
   resource_group_name = var.resource_group_name
   location            = var.location

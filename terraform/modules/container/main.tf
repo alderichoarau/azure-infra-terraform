@@ -11,10 +11,10 @@ terraform {
   }
 }
 
-# checkov:skip=CKV_AZURE_245: ACI exposé publiquement intentionnellement — conteneur nginx de démonstration TP
-# checkov:skip=CKV_AZURE_98: idem CKV_AZURE_245 — IP publique intentionnelle
-# checkov:skip=CKV_AZURE_235: variables d'environnement non sensibles (owner, env)
 resource "azurerm_container_group" "aci" {
+  # checkov:skip=CKV_AZURE_245: ACI exposé publiquement intentionnellement — conteneur nginx de démonstration TP
+  # checkov:skip=CKV_AZURE_98: idem CKV_AZURE_245 — IP publique intentionnelle
+  # checkov:skip=CKV_AZURE_235: variables d'environnement non sensibles (owner, env)
   name                = "aci-${var.owner}-tf"
   resource_group_name = var.resource_group_name
   location            = var.location
