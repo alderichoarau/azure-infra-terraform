@@ -18,6 +18,7 @@ permissions:
   contents: read
 
 env:
+  TF_VERSION:          "~> 1.9"
   ARM_USE_OIDC:        "true"
   ARM_CLIENT_ID:       ${{ secrets.AZURE_CLIENT_ID }}
   ARM_TENANT_ID:       ${{ secrets.AZURE_TENANT_ID }}
@@ -34,13 +35,20 @@ jobs:
         working-directory: terraform
 
     steps:
+      # ── Setup ────────────────────────────────────────────────────────────────
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@v4
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v4
         with:
-          terraform_version: "~> 1.9"
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Setup Infracost
+        if: inputs.action == 'plan'
+        uses: infracost/actions/setup@v3
+        with:
+          api-key: ${{ secrets.INFRACOST_API_KEY }}
 
       - name: Azure Login (OIDC)
         uses: azure/login@v3
@@ -49,6 +57,7 @@ jobs:
           tenant-id:       ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
+      # ── Init & Validate ───────────────────────────────────────────────────────
       - name: Terraform Init
         run: |
           terraform init \
@@ -65,7 +74,7 @@ jobs:
       - name: Terraform Validate
         run: terraform validate
 
-      # ── Plan (workflow_dispatch plan) ─────────────────────────────────────────
+      # ── Plan ─────────────────────────────────────────────────────────────────
       - name: Terraform Plan
         if: inputs.action == 'plan'
         run: |
@@ -75,13 +84,7 @@ jobs:
             -out=tfplan \
             -no-color
 
-      - name: Setup Infracost
-        if: inputs.action == 'plan'
-        uses: infracost/actions/setup@v3
-        with:
-          api-key: ${{ secrets.INFRACOST_API_KEY }}
-
-      - name: Infracost — Cost estimate
+      - name: Infracost Cost Estimate
         if: inputs.action == 'plan'
         run: |
           terraform show -json tfplan > tfplan.json
@@ -94,7 +97,7 @@ jobs:
             --format table \
             | tee infracost-summary.txt
 
-      - name: Upload cost artifacts
+      - name: Upload Cost Artifacts
         if: inputs.action == 'plan'
         uses: actions/upload-artifact@v4
         with:
@@ -104,16 +107,16 @@ jobs:
             terraform/infracost-summary.txt
           retention-days: 30
 
-      # ── Apply (workflow_dispatch apply) ───────────────────────────────────────
+      # ── Apply ─────────────────────────────────────────────────────────────────
       - name: Terraform Apply
-        if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || inputs.action == 'apply'
+        if: inputs.action == 'apply'
         run: |
           terraform apply \
             -var="owner=${{ secrets.AZURE_OWNER }}" \
             -var="resource_group_name=${{ secrets.AZURE_RG_NAME }}" \
             -auto-approve
 
-      # ── Destroy (workflow_dispatch destroy only) ───────────────────────────
+      # ── Destroy ───────────────────────────────────────────────────────────────
       - name: Terraform Destroy
         if: inputs.action == 'destroy'
         run: |
@@ -122,10 +125,11 @@ jobs:
             -var="resource_group_name=${{ secrets.AZURE_RG_NAME }}" \
             -auto-approve
 
-      - name: Summary
+      # ── Summary ───────────────────────────────────────────────────────────────
+      - name: Job Summary
         if: always()
         run: |
-          echo "## Terraform — ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Owner** : ${{ secrets.AZURE_OWNER }}" >> $GITHUB_STEP_SUMMARY
+          echo "## Terraform Deploy — ${{ inputs.action }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Owner**  : ${{ secrets.AZURE_OWNER }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Branch** : ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Action** : ${{ github.event_name == 'pull_request' && 'plan' || inputs.action || 'apply' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Actor**  : @${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
