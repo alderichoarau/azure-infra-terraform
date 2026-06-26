@@ -11,16 +11,17 @@ terraform {
   }
 }
 
-# checkov:skip=CKV_AZURE_13: App Service Authentication (B2C) hors périmètre TP
-# checkov:skip=CKV_AZURE_17: Client certificates hors périmètre TP
-# checkov:skip=CKV_AZURE_88: Azure Files storage hors périmètre TP
-# checkov:skip=CKV_AZURE_222: accès réseau public requis pour le TP
 resource "azurerm_linux_web_app" "app" {
-  name                                    = "app-${var.owner}-tf"
-  resource_group_name                     = var.resource_group_name
-  location                                = data.azurerm_service_plan.plan.location
-  service_plan_id                         = var.service_plan_id
-  https_only                              = true
+  # checkov:skip=CKV_AZURE_13: App Service Authentication (B2C) hors périmètre TP
+  # checkov:skip=CKV_AZURE_17: Client certificates hors périmètre TP
+  # checkov:skip=CKV_AZURE_78: FTP désactivé via ftp_publish_basic_authentication_enabled (azurerm 4.x)
+  # checkov:skip=CKV_AZURE_88: Azure Files storage hors périmètre TP
+  # checkov:skip=CKV_AZURE_222: accès réseau public requis pour le TP
+  name                                     = "app-${var.owner}-tf"
+  resource_group_name                      = var.resource_group_name
+  location                                 = data.azurerm_service_plan.plan.location
+  service_plan_id                          = var.service_plan_id
+  https_only                               = true
   ftp_publish_basic_authentication_enabled = false
 
   identity {
@@ -56,7 +57,6 @@ resource "azurerm_linux_web_app" "app" {
 }
 
 data "azurerm_service_plan" "plan" {
-  # Retrieves the plan location from its ID
   name                = split("/", var.service_plan_id)[8]
   resource_group_name = split("/", var.service_plan_id)[4]
 }
