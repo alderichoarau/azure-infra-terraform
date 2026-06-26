@@ -1,6 +1,16 @@
 # Python Function App — dedicated storage + shared plan
 # Mirror of step [3] in provision.sh
 
+terraform {
+  required_version = ">= 1.9"
+  required_providers {
+    azurerm = {
+      source  = "hashicorp/azurerm"
+      version = "~> 4.0"
+    }
+  }
+}
+
 # Storage dedicated to the Function App (required, separate from business storage)
 resource "azurerm_storage_account" "fn_storage" {
   name                     = "stfn${replace(var.owner, "-", "")}"

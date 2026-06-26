@@ -1,6 +1,16 @@
 # Python App Service — uses the shared plan (data source in main.tf)
 # Mirror of step [2] in provision.sh
 
+terraform {
+  required_version = ">= 1.9"
+  required_providers {
+    azurerm = {
+      source  = "hashicorp/azurerm"
+      version = "~> 4.0"
+    }
+  }
+}
+
 resource "azurerm_linux_web_app" "app" {
   name                = "app-${var.owner}-tf"
   resource_group_name = var.resource_group_name

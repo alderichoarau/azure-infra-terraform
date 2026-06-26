@@ -1,5 +1,4 @@
 name: Terraform Deploy
-
 run-name: "Deploy · ${{ inputs.action }} · triggered by @${{ github.actor }}"
 
 on:

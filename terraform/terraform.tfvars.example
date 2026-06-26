@@ -1,0 +1,20 @@
+# Copy this file to terraform.tfvars and fill in your values
+# terraform.tfvars is gitignored — never commit it
+
+# Your learner identifier (firstname-lastname, lowercase, hyphens only)
+owner = "prenom-nom"
+
+# Resource Group pre-created by the trainer
+resource_group_name = "rg-prenom-nom"
+
+# Azure region — default is francecentral, change only if instructed
+# location = "francecentral"
+
+# Shared infrastructure (pre-created by trainer — do not change)
+# shared_rg_name   = "rg-shared-prf2026"
+# shared_plan_name = "plan-npr-prf2026"
+
+# Optional extra tags
+# tags = {
+#   project = "tp-azure"
+# }

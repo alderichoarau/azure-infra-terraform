@@ -1,6 +1,16 @@
 # Business Storage Account + Blob containers (private/public)
 # Mirror of steps [1] and [6] in provision.sh
 
+terraform {
+  required_version = ">= 1.9"
+  required_providers {
+    azurerm = {
+      source  = "hashicorp/azurerm"
+      version = "~> 4.0"
+    }
+  }
+}
+
 resource "azurerm_storage_account" "sa" {
   name                     = "st${replace(var.owner, "-", "")}tf"
   resource_group_name      = var.resource_group_name

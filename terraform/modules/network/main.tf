@@ -1,6 +1,16 @@
 # Network: VNet + subnets + NSG
 # Mirror of step [7] in provision.sh
 
+terraform {
+  required_version = ">= 1.9"
+  required_providers {
+    azurerm = {
+      source  = "hashicorp/azurerm"
+      version = "~> 4.0"
+    }
+  }
+}
+
 resource "azurerm_virtual_network" "vnet" {
   name                = "vnet-${var.owner}-tf"
   resource_group_name = var.resource_group_name

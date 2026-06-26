@@ -59,7 +59,7 @@ jobs:
           directory: terraform
           framework: terraform
           output_format: cli
-          soft_fail: true
+          soft_fail: false
 
   # ── Cost ─────────────────────────────────────────────────────────────────────
   cost:

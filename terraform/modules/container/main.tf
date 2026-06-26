@@ -1,5 +1,15 @@
-# Azure Container Instance — nginx:latest
+# Azure Container Instance — nginx:1.27-alpine
 # Mirror of step [5] in provision.sh
+
+terraform {
+  required_version = ">= 1.9"
+  required_providers {
+    azurerm = {
+      source  = "hashicorp/azurerm"
+      version = "~> 4.0"
+    }
+  }
+}
 
 resource "azurerm_container_group" "aci" {
   name                = "aci-${var.owner}-tf"
