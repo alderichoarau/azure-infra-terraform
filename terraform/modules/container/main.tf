@@ -12,6 +12,8 @@ terraform {
 }
 
 # checkov:skip=CKV_AZURE_245: ACI exposé publiquement intentionnellement — conteneur nginx de démonstration TP
+# checkov:skip=CKV_AZURE_98: idem CKV_AZURE_245 — IP publique intentionnelle
+# checkov:skip=CKV_AZURE_235: variables d'environnement non sensibles (owner, env)
 resource "azurerm_container_group" "aci" {
   name                = "aci-${var.owner}-tf"
   resource_group_name = var.resource_group_name
@@ -19,6 +21,10 @@ resource "azurerm_container_group" "aci" {
   ip_address_type     = "Public"
   dns_name_label      = "aci-${var.owner}-tf"
   os_type             = "Linux"
+
+  identity {
+    type = "SystemAssigned"
+  }
 
   container {
     name   = "nginx"

@@ -56,6 +56,7 @@ module "app_service" {
   tags                = local.tags
 }
 
+# checkov:skip=CKV_AZURE_13,CKV_AZURE_16,CKV_AZURE_17,CKV_AZURE_18,CKV_AZURE_63,CKV_AZURE_65,CKV_AZURE_66,CKV_AZURE_71,CKV_AZURE_78,CKV_AZURE_88,CKV_AZURE_213,CKV_AZURE_222: ressource de test Infracost uniquement
 # Second App Service — added to validate Infracost cost estimation on PR
 resource "azurerm_linux_web_app" "app_secondary" {
   name                = "app-${var.owner}-secondary-tf"
