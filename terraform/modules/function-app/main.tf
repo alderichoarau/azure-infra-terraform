@@ -14,13 +14,13 @@ resource "azurerm_storage_account" "fn_storage" {
 }
 
 resource "azurerm_linux_function_app" "fn" {
-  name                        = "fn-${var.owner}-tf"
-  resource_group_name         = var.resource_group_name
-  location                    = var.location
-  service_plan_id             = var.service_plan_id
-  storage_account_name        = azurerm_storage_account.fn_storage.name
+  name                          = "fn-${var.owner}-tf"
+  resource_group_name           = var.resource_group_name
+  location                      = var.location
+  service_plan_id               = var.service_plan_id
+  storage_account_name          = azurerm_storage_account.fn_storage.name
   storage_uses_managed_identity = true
-  https_only                  = true
+  https_only                    = true
 
   identity {
     type = "SystemAssigned"
