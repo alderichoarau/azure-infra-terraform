@@ -12,18 +12,32 @@ terraform {
 }
 
 # checkov:skip=CKV2_AZURE_1: CMK nécessite Azure Key Vault, hors périmètre TP
+# checkov:skip=CKV_AZURE_206: réplication GRS trop coûteuse pour TP (LRS suffisant)
+# checkov:skip=CKV_AZURE_33: logs queue storage non requis en contexte TP
+# checkov:skip=CKV2_AZURE_33: private endpoint nécessite VNet integration, hors périmètre TP
+# checkov:skip=CKV2_AZURE_41: politique expiration SAS hors périmètre TP
+# checkov:skip=CKV2_AZURE_21: logs lecture blob non requis en contexte TP
 # Storage dedicated to the Function App (required, separate from business storage)
 resource "azurerm_storage_account" "fn_storage" {
-  name                     = "stfn${replace(var.owner, "-", "")}"
-  resource_group_name      = var.resource_group_name
-  location                 = var.location
-  account_tier             = "Standard"
-  account_replication_type = "LRS"
-  min_tls_version          = "TLS1_2"
+  name                            = "stfn${replace(var.owner, "-", "")}"
+  resource_group_name             = var.resource_group_name
+  location                        = var.location
+  account_tier                    = "Standard"
+  account_replication_type        = "LRS"
+  min_tls_version                 = "TLS1_2"
+  allow_nested_items_to_be_public = false
+  shared_access_key_enabled       = false
+
+  blob_properties {
+    delete_retention_policy {
+      days = 7
+    }
+  }
 
   tags = merge(var.tags, { purpose = "function-storage" })
 }
 
+# checkov:skip=CKV_AZURE_221: accès réseau public requis pour le TP
 resource "azurerm_linux_function_app" "fn" {
   name                          = "fn-${var.owner}-tf"
   resource_group_name           = var.resource_group_name

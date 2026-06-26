@@ -11,17 +11,39 @@ terraform {
   }
 }
 
+# checkov:skip=CKV_AZURE_13: App Service Authentication (B2C) hors périmètre TP
+# checkov:skip=CKV_AZURE_17: Client certificates hors périmètre TP
+# checkov:skip=CKV_AZURE_88: Azure Files storage hors périmètre TP
+# checkov:skip=CKV_AZURE_222: accès réseau public requis pour le TP
 resource "azurerm_linux_web_app" "app" {
-  name                = "app-${var.owner}-tf"
-  resource_group_name = var.resource_group_name
-  location            = data.azurerm_service_plan.plan.location
-  service_plan_id     = var.service_plan_id
-  https_only          = true
+  name                                    = "app-${var.owner}-tf"
+  resource_group_name                     = var.resource_group_name
+  location                                = data.azurerm_service_plan.plan.location
+  service_plan_id                         = var.service_plan_id
+  https_only                              = true
+  ftp_publish_basic_authentication_enabled = false
+
+  identity {
+    type = "SystemAssigned"
+  }
 
   site_config {
     minimum_tls_version = "1.2"
+    http2_enabled       = true
+    health_check_path   = "/health"
     application_stack {
       python_version = "3.11"
+    }
+  }
+
+  logs {
+    detailed_error_messages = true
+    failed_request_tracing  = true
+    http_logs {
+      file_system {
+        retention_in_days = 7
+        retention_in_mb   = 35
+      }
     }
   }
 

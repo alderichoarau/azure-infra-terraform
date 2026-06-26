@@ -13,7 +13,6 @@ permissions:
 jobs:
   # ── Validate ────────────────────────────────────────────────────────────────
   validate:
-    name: Validate
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -51,7 +50,7 @@ jobs:
     name: Security — Checkov
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Checkov
         uses: bridgecrewio/checkov-action@v12
@@ -61,49 +60,3 @@ jobs:
           output_format: cli
           soft_fail: false
 
-  # ── Cost ─────────────────────────────────────────────────────────────────────
-  cost:
-    name: Cost — Infracost
-    runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
-    permissions:
-      contents: read
-      pull-requests: write
-      id-token: write
-    defaults:
-      run:
-        working-directory: terraform
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Azure Login (OIDC)
-        uses: azure/login@v3
-        with:
-          client-id:       ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id:       ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-
-      - name: Setup Infracost
-        uses: infracost/actions/setup@v3
-        with:
-          api-key: ${{ secrets.INFRACOST_API_KEY }}
-
-      - name: Cost breakdown
-        env:
-          ARM_USE_OIDC:        "true"
-          ARM_CLIENT_ID:       ${{ secrets.AZURE_CLIENT_ID }}
-          ARM_TENANT_ID:       ${{ secrets.AZURE_TENANT_ID }}
-          ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-        run: |
-          infracost breakdown \
-            --path . \
-            --terraform-var "owner=${{ secrets.AZURE_OWNER }}" \
-            --terraform-var "resource_group_name=${{ secrets.AZURE_RG_NAME }}" \
-            --format json \
-            --out-file /tmp/infracost.json
-
-      - name: Post PR comment
-        uses: infracost/actions/comment@v3
-        with:
-          path: /tmp/infracost.json
-          behavior: update
