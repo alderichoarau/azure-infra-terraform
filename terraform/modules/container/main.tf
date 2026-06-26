@@ -11,6 +11,7 @@ terraform {
   }
 }
 
+# checkov:skip=CKV_AZURE_245: ACI exposé publiquement intentionnellement — conteneur nginx de démonstration TP
 resource "azurerm_container_group" "aci" {
   name                = "aci-${var.owner}-tf"
   resource_group_name = var.resource_group_name

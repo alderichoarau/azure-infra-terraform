@@ -93,3 +93,52 @@ resource "azurerm_subnet_network_security_group_association" "frontend_nsg" {
   subnet_id                 = azurerm_subnet.frontend.id
   network_security_group_id = azurerm_network_security_group.nsg.id
 }
+
+resource "azurerm_network_security_group" "nsg_backend" {
+  name                = "nsg-backend-${var.owner}-tf"
+  resource_group_name = var.resource_group_name
+  location            = var.location
+  tags                = var.tags
+
+  security_rule {
+    name                       = "Allow-From-Frontend"
+    priority                   = 100
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "10.0.1.0/24"
+    destination_address_prefix = "*"
+  }
+
+  security_rule {
+    name                       = "Deny-All-Inbound"
+    priority                   = 4000
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+  }
+
+  security_rule {
+    name                       = "Deny-All-Outbound"
+    priority                   = 4000
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+  }
+}
+
+# NSG → subnet-backend association
+resource "azurerm_subnet_network_security_group_association" "backend_nsg" {
+  subnet_id                 = azurerm_subnet.backend.id
+  network_security_group_id = azurerm_network_security_group.nsg_backend.id
+}

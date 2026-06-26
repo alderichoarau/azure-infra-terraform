@@ -11,6 +11,8 @@ terraform {
   }
 }
 
+# checkov:skip=CKV2_AZURE_1: CMK nécessite Azure Key Vault, hors périmètre TP
+# checkov:skip=CKV_AZURE_33: logs diagnostics blob non requis en contexte TP
 resource "azurerm_storage_account" "sa" {
   name                     = "st${replace(var.owner, "-", "")}tf"
   resource_group_name      = var.resource_group_name

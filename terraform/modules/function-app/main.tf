@@ -11,6 +11,7 @@ terraform {
   }
 }
 
+# checkov:skip=CKV2_AZURE_1: CMK nécessite Azure Key Vault, hors périmètre TP
 # Storage dedicated to the Function App (required, separate from business storage)
 resource "azurerm_storage_account" "fn_storage" {
   name                     = "stfn${replace(var.owner, "-", "")}"
