@@ -31,7 +31,8 @@ resource "azurerm_linux_web_app" "app" {
   site_config {
     minimum_tls_version = "1.2"
     http2_enabled       = true
-    health_check_path   = "/health"
+    health_check_path                 = "/health"
+    health_check_eviction_time_in_min = 5
     application_stack {
       python_version = "3.11"
     }
