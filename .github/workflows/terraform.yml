@@ -99,7 +99,7 @@ jobs:
 
       - name: Upload Cost Artifacts
         if: inputs.action == 'plan'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: infracost-${{ github.run_id }}
           path: |
