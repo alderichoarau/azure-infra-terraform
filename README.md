@@ -26,6 +26,15 @@ Terraform mirror of the [azure-infra-cli](https://github.com/hoaraualderic/azure
 - **Contributor** role on the target Resource Group
 - **Storage Blob Data Owner** and **Storage Queue Data Contributor** roles on the target Resource Group — required because the storage accounts have `shared_access_key_enabled = false`; the `azurerm` provider authenticates to the storage data plane via Azure AD (`storage_use_azuread = true` in [providers.tf](terraform/providers.tf)) instead of account keys
 
+## Local Git hooks
+
+A [`.pre-commit-config.yaml`](.pre-commit-config.yaml) runs `terraform fmt`, `terraform validate` and `tflint` before each commit — the same checks as the `Validate` job in [ci.yml](.github/workflows/ci.yml), so issues are caught locally instead of failing in CI. One-time setup:
+
+```bash
+pip install pre-commit   # or: brew install pre-commit
+pre-commit install
+```
+
 ## Local usage
 
 ```bash
