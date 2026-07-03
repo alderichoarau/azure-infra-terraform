@@ -18,3 +18,7 @@ resource_group_name = "rg-prenom-nom"
 # tags = {
 #   project = "tp-azure"
 # }
+
+# automation_only is intentionally NOT set here — it's a guard that only the
+# CI pipeline sets (TF_VAR_automation_only=true) to block accidental local
+# plan/apply/destroy. See variables.tf for details.

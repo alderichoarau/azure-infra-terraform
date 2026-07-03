@@ -36,3 +36,13 @@ variable "tags" {
   type        = map(string)
   default     = {}
 }
+
+variable "automation_only" {
+  description = "Guard against accidental local apply/destroy — set to true only by the CI pipeline (TF_VAR_automation_only)."
+  type        = bool
+
+  validation {
+    condition     = var.automation_only == true
+    error_message = "plan/apply/destroy must run through the GitHub Actions pipeline. If you really mean to run this locally, pass -var=\"automation_only=true\" explicitly."
+  }
+}
