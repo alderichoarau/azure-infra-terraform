@@ -143,7 +143,7 @@ jobs:
             echo "<details><summary>Terraform ${{ inputs.action }} output</summary>" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
-            tail -n 5 "$OUTPUT_FILE" >> $GITHUB_STEP_SUMMARY
+            tail -n 20 "$OUTPUT_FILE" >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
             echo "</details>" >> $GITHUB_STEP_SUMMARY
           else
