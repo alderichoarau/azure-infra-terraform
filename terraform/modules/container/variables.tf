@@ -1,4 +1,19 @@
-variable "owner" { type = string }
-variable "resource_group_name" { type = string }
-variable "location" { type = string }
-variable "tags" { type = map(string) }
+variable "owner" {
+  description = "Learner identifier, used to build unique resource names and tags"
+  type        = string
+}
+
+variable "resource_group_name" {
+  description = "Name of the Resource Group to deploy into"
+  type        = string
+}
+
+variable "location" {
+  description = "Azure region for the container instance"
+  type        = string
+}
+
+variable "tags" {
+  description = "Tags applied to all resources in this module"
+  type        = map(string)
+}
