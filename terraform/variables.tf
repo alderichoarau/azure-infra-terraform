@@ -37,7 +37,7 @@ variable "tags" {
   default     = {}
 }
 
-# tflint-ignore: terraform_unused_declarations -- only referenced in its own validation block below, never consumed by a resource
+# tflint-ignore: terraform_unused_declarations # only referenced in its own validation block below, never consumed by a resource
 variable "automation_only" {
   description = "Guard against accidental local apply/destroy — set to true only by the CI pipeline (TF_VAR_automation_only)."
   type        = bool
