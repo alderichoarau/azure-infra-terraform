@@ -37,16 +37,13 @@ terraform login
 # 2. Initialize (state + run history are stored in HCP Terraform, see backend.tf)
 terraform init
 
-# 3. Plan
+# 3. Plan / Apply — blocked by default, see below
 terraform plan \
   -var="owner=first-last" \
   -var="resource_group_name=rg-first-last"
-
-# 4. Apply
-terraform apply \
-  -var="owner=first-last" \
-  -var="resource_group_name=rg-first-last"
 ```
+
+`plan`/`apply`/`destroy` are gated by the required `automation_only` variable ([variables.tf](terraform/variables.tf)): the CI pipeline sets `TF_VAR_automation_only=true` automatically, but running any of these commands locally without it fails with `Error: No value for required variable`. This is intentional — it's a guard rail so infrastructure changes normally only happen through the reviewed GitHub Actions pipeline. `terraform validate` and `terraform fmt` are unaffected and still work locally without it. If you deliberately need to `plan`/`apply`/`destroy` locally, add `-var="automation_only=true"` explicitly.
 
 The HCP Terraform workspace (`azure-infra-alderic-hoarau`) runs in **local execution mode**: `plan`/`apply` still run on your machine (or in CI) using your own Azure credentials — HCP Terraform only stores state and run history, it does not execute Terraform itself.
 

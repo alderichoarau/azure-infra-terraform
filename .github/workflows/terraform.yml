@@ -25,6 +25,7 @@ env:
   ARM_SUBSCRIPTION_ID:     ${{ secrets.AZURE_SUBSCRIPTION_ID }}
   TF_WORKING_DIR:          terraform
   TF_TOKEN_app_terraform_io: ${{ secrets.TF_API_TOKEN }}
+  TF_VAR_automation_only:  "true"
 
 jobs:
   terraform:
