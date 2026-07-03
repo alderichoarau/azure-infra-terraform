@@ -18,12 +18,13 @@ permissions:
   contents: read
 
 env:
-  TF_VERSION:          "~> 1.9"
-  ARM_USE_OIDC:        "true"
-  ARM_CLIENT_ID:       ${{ secrets.AZURE_CLIENT_ID }}
-  ARM_TENANT_ID:       ${{ secrets.AZURE_TENANT_ID }}
-  ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-  TF_WORKING_DIR:      terraform
+  TF_VERSION:              "~> 1.9"
+  ARM_USE_OIDC:            "true"
+  ARM_CLIENT_ID:           ${{ secrets.AZURE_CLIENT_ID }}
+  ARM_TENANT_ID:           ${{ secrets.AZURE_TENANT_ID }}
+  ARM_SUBSCRIPTION_ID:     ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+  TF_WORKING_DIR:          terraform
+  TF_TOKEN_app_terraform_io: ${{ secrets.TF_API_TOKEN }}
 
 jobs:
   terraform:
@@ -58,14 +59,10 @@ jobs:
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       # ── Init & Validate ───────────────────────────────────────────────────────
+      # State + run history live in HCP Terraform (see terraform/backend.tf);
+      # plan/apply still execute here since the workspace execution-mode is "local".
       - name: Terraform Init
-        run: |
-          terraform init \
-            -backend-config="use_oidc=true" \
-            -backend-config="resource_group_name=${{ secrets.TF_BACKEND_RG }}" \
-            -backend-config="storage_account_name=${{ secrets.TF_BACKEND_SA }}" \
-            -backend-config="container_name=tfstate" \
-            -backend-config="key=${{ secrets.AZURE_OWNER }}.terraform.tfstate"
+        run: terraform init
 
       - name: Terraform Format Check
         run: terraform fmt -check -recursive
