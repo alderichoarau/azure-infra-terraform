@@ -80,7 +80,8 @@ jobs:
             -var="owner=${{ secrets.AZURE_OWNER }}" \
             -var="resource_group_name=${{ secrets.AZURE_RG_NAME }}" \
             -out=tfplan \
-            -no-color
+            -no-color \
+            | tee plan_output.txt
 
       - name: Infracost Cost Estimate
         if: inputs.action == 'plan'
@@ -112,7 +113,9 @@ jobs:
           terraform apply \
             -var="owner=${{ secrets.AZURE_OWNER }}" \
             -var="resource_group_name=${{ secrets.AZURE_RG_NAME }}" \
-            -auto-approve
+            -auto-approve \
+            -no-color \
+            | tee apply_output.txt
 
       # ── Destroy ───────────────────────────────────────────────────────────────
       - name: Terraform Destroy
@@ -121,7 +124,9 @@ jobs:
           terraform destroy \
             -var="owner=${{ secrets.AZURE_OWNER }}" \
             -var="resource_group_name=${{ secrets.AZURE_RG_NAME }}" \
-            -auto-approve
+            -auto-approve \
+            -no-color \
+            | tee destroy_output.txt
 
       # ── Summary ───────────────────────────────────────────────────────────────
       - name: Job Summary
@@ -131,3 +136,17 @@ jobs:
           echo "- **Owner**  : ${{ secrets.AZURE_OWNER }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Branch** : ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Actor**  : @${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+
+          OUTPUT_FILE="${{ inputs.action }}_output.txt"
+          if [ -f "$OUTPUT_FILE" ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "<details><summary>Terraform ${{ inputs.action }} output</summary>" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            tail -c 60000 "$OUTPUT_FILE" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "</details>" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "_No output captured — the ${{ inputs.action }} step likely failed before producing any._" >> $GITHUB_STEP_SUMMARY
+          fi
