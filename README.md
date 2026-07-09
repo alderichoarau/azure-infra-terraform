@@ -4,6 +4,10 @@ Azure infrastructure provisioned with Terraform — PRF2026 training context.
 
 Terraform mirror of the [azure-infra-cli](https://github.com/hoaraualderic/azure-infra-cli) project (Bash scripts).
 
+## Last analysis
+
+[![Terraform CI](https://github.com/alderichoarau/azure-infra-terraform/actions/workflows/ci.yml/badge.svg)](https://github.com/alderichoarau/azure-infra-terraform/actions/workflows/ci.yml)
+
 ## Deployed resources
 
 | Resource | Generated name | Description |
@@ -76,6 +80,7 @@ The HCP Terraform workspace (`azure-infra-alderic-hoarau`) runs in **local execu
 | --- | --- | --- |
 | **Terraform CI** (`.github/workflows/ci.yml`) | Push to `main` / PR | fmt, tflint, validate, Checkov, Infracost |
 | **Terraform Deploy** (`.github/workflows/terraform.yml`) | Manual (`workflow_dispatch`) | plan / apply / destroy |
+| **Terraform Weekly Cleanup** (`.github/workflows/terraform-cleanup.yml`) | Scheduled (Fridays 18:00 Paris) + manual | destroy — tears down all resources before the weekend |
 
 ## Structure
 
