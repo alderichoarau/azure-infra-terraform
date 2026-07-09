@@ -2,10 +2,10 @@ name: Terraform Weekly Cleanup
 run-name: "Cleanup · destroy · ${{ github.event_name == 'schedule' && 'scheduled' || format('triggered by @{0}', github.actor) }}"
 
 on:
-  schedule:
+  # schedule:
     # Fridays 18:00 Europe/Paris = 16:00 UTC (summer/CEST).
     # Cron is always UTC and does not follow DST — in winter (CET) this fires at 17:00 Paris time instead of 18:00.
-    - cron: "0 16 * * 5"
+    # - cron: "0 16 * * 5"
   workflow_dispatch: {}
 
 permissions:
