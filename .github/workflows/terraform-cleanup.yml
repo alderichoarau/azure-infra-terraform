@@ -1,0 +1,79 @@
+name: Terraform Weekly Cleanup
+run-name: "Cleanup · destroy · ${{ github.event_name == 'schedule' && 'scheduled' || format('triggered by @{0}', github.actor) }}"
+
+on:
+  schedule:
+    # Fridays 18:00 Europe/Paris = 16:00 UTC (summer/CEST).
+    # Cron is always UTC and does not follow DST — in winter (CET) this fires at 17:00 Paris time instead of 18:00.
+    - cron: "0 16 * * 5"
+  workflow_dispatch: {}
+
+permissions:
+  id-token: write  # OIDC token for Azure login
+  contents: read
+
+env:
+  TF_VERSION:              "~> 1.9"
+  ARM_USE_OIDC:            "true"
+  ARM_CLIENT_ID:           ${{ secrets.AZURE_CLIENT_ID }}
+  ARM_TENANT_ID:           ${{ secrets.AZURE_TENANT_ID }}
+  ARM_SUBSCRIPTION_ID:     ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+  TF_TOKEN_app_terraform_io: ${{ secrets.TF_API_TOKEN }}
+  TF_VAR_automation_only:  "true"
+
+jobs:
+  destroy:
+    name: Terraform Destroy (weekly cleanup)
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: terraform
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Azure Login (OIDC)
+        uses: azure/login@v3
+        with:
+          client-id:       ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id:       ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Destroy
+        run: |
+          terraform destroy \
+            -var="owner=${{ secrets.AZURE_OWNER }}" \
+            -var="resource_group_name=${{ secrets.AZURE_RG_NAME }}" \
+            -auto-approve \
+            -no-color \
+            | tee destroy_output.txt
+
+      - name: Job Summary
+        if: always()
+        run: |
+          echo "## Terraform Weekly Cleanup" >> $GITHUB_STEP_SUMMARY
+          echo "- **Owner**  : ${{ secrets.AZURE_OWNER }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Trigger**: ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
+
+          if [ -f destroy_output.txt ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "<details><summary>Terraform destroy output</summary>" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            tail -n 20 destroy_output.txt >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "</details>" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "_No output captured — the destroy step likely failed before producing any._" >> $GITHUB_STEP_SUMMARY
+          fi
