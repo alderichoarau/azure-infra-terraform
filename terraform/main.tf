@@ -37,6 +37,7 @@ data "azurerm_service_plan" "shared" {
 # ── Storage ───────────────────────────────────────────────────────────────────
 
 module "storage" {
+  # checkov:skip=CKV_TF_1: registry module (app.terraform.io), pinned by semver `version` — commit-hash pinning applies to git sources only
   source  = "app.terraform.io/alderic-hoarau/storage/azurerm"
   version = "~> 0.1"
 
@@ -49,6 +50,7 @@ module "storage" {
 # ── App Service ───────────────────────────────────────────────────────────────
 
 module "app_service" {
+  # checkov:skip=CKV_TF_1: registry module (app.terraform.io), pinned by semver `version` — commit-hash pinning applies to git sources only
   source  = "app.terraform.io/alderic-hoarau/app-service/azurerm"
   version = "~> 0.1"
 
@@ -92,6 +94,7 @@ resource "azurerm_linux_web_app" "app_secondary" {
 # ── Function App ──────────────────────────────────────────────────────────────
 
 module "function_app" {
+  # checkov:skip=CKV_TF_1: registry module (app.terraform.io), pinned by semver `version` — commit-hash pinning applies to git sources only
   source  = "app.terraform.io/alderic-hoarau/function-app/azurerm"
   version = "~> 0.1"
 
@@ -117,6 +120,7 @@ resource "azurerm_static_web_app" "stapp" {
 # ── Container Instance ────────────────────────────────────────────────────────
 
 module "container" {
+  # checkov:skip=CKV_TF_1: registry module (app.terraform.io), pinned by semver `version` — commit-hash pinning applies to git sources only
   source  = "app.terraform.io/alderic-hoarau/container/azurerm"
   version = "~> 0.1"
 
@@ -135,6 +139,7 @@ module "container" {
 # ── Network ───────────────────────────────────────────────────────────────────
 
 module "network" {
+  # checkov:skip=CKV_TF_1: registry module (app.terraform.io), pinned by semver `version` — commit-hash pinning applies to git sources only
   source  = "app.terraform.io/alderic-hoarau/network/azurerm"
   version = "~> 0.1"
 
