@@ -1,7 +1,16 @@
 version: 2
+
+registries:
+  hcp-terraform:
+    type: terraform-registry
+    url: https://app.terraform.io
+    token: ${{secrets.TF_API_TOKEN}}
+
 updates:
   - package-ecosystem: "terraform"
     directory: "/terraform"
+    registries:
+      - hcp-terraform
     schedule:
       interval: "weekly"
       day: "monday"
