@@ -37,9 +37,10 @@ data "azurerm_service_plan" "shared" {
 # ── Storage ───────────────────────────────────────────────────────────────────
 
 module "storage" {
-  source = "./modules/storage"
+  source  = "app.terraform.io/alderic-hoarau/storage/azurerm"
+  version = "~> 0.1"
 
-  owner               = var.owner
+  name                = "st${replace(var.owner, "-", "")}tf"
   resource_group_name = data.azurerm_resource_group.rg.name
   location            = var.location
   tags                = local.tags
@@ -48,11 +49,13 @@ module "storage" {
 # ── App Service ───────────────────────────────────────────────────────────────
 
 module "app_service" {
-  source = "./modules/app-service"
+  source  = "app.terraform.io/alderic-hoarau/app-service/azurerm"
+  version = "~> 0.1"
 
-  owner               = var.owner
+  name                = "app-${var.owner}-tf"
   resource_group_name = data.azurerm_resource_group.rg.name
   service_plan_id     = data.azurerm_service_plan.shared.id
+  app_settings        = { ENVIRONMENT = "tp" }
   tags                = local.tags
 }
 
@@ -89,13 +92,15 @@ resource "azurerm_linux_web_app" "app_secondary" {
 # ── Function App ──────────────────────────────────────────────────────────────
 
 module "function_app" {
-  source = "./modules/function-app"
+  source  = "app.terraform.io/alderic-hoarau/function-app/azurerm"
+  version = "~> 0.1"
 
-  owner               = var.owner
-  resource_group_name = data.azurerm_resource_group.rg.name
-  location            = var.location
-  service_plan_id     = data.azurerm_service_plan.shared.id
-  tags                = local.tags
+  name                 = "fn-${var.owner}-tf"
+  storage_account_name = "stfn${replace(var.owner, "-", "")}"
+  resource_group_name  = data.azurerm_resource_group.rg.name
+  location             = var.location
+  service_plan_id      = data.azurerm_service_plan.shared.id
+  tags                 = local.tags
 }
 
 # ── Static Web App ────────────────────────────────────────────────────────────
@@ -112,20 +117,28 @@ resource "azurerm_static_web_app" "stapp" {
 # ── Container Instance ────────────────────────────────────────────────────────
 
 module "container" {
-  source = "./modules/container"
+  source  = "app.terraform.io/alderic-hoarau/container/azurerm"
+  version = "~> 0.1"
 
-  owner               = var.owner
+  name                = "aci-${var.owner}-tf"
   resource_group_name = data.azurerm_resource_group.rg.name
   location            = var.location
-  tags                = local.tags
+
+  environment_variables = {
+    OWNER       = var.owner
+    ENVIRONMENT = "tp"
+  }
+
+  tags = local.tags
 }
 
 # ── Network ───────────────────────────────────────────────────────────────────
 
 module "network" {
-  source = "./modules/network"
+  source  = "app.terraform.io/alderic-hoarau/network/azurerm"
+  version = "~> 0.1"
 
-  owner               = var.owner
+  name                = "${var.owner}-tf"
   resource_group_name = data.azurerm_resource_group.rg.name
   location            = var.location
   tags                = local.tags
