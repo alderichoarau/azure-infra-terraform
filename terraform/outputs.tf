@@ -5,12 +5,12 @@ output "storage_account_name" {
 
 output "blob_container_private_url" {
   description = "URL of the private api-logs container"
-  value       = module.storage.container_private_url
+  value       = module.storage.private_container_url
 }
 
 output "blob_container_public_url" {
   description = "Public URL of the api-config container"
-  value       = module.storage.container_public_url
+  value       = module.storage.public_container_url
 }
 
 output "app_service_url" {
@@ -40,5 +40,5 @@ output "vnet_name" {
 
 output "nsg_name" {
   description = "Name of the NSG attached to subnet-frontend"
-  value       = module.network.nsg_name
+  value       = module.network.nsg_frontend_name
 }

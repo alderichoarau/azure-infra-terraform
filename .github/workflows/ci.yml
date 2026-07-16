@@ -11,6 +11,9 @@ on:
 permissions:
   contents: read  # default minimal — jobs override as needed
 
+env:
+  TF_TOKEN_app_terraform_io: ${{ secrets.TF_API_TOKEN }}
+
 jobs:
   # ── Validate ────────────────────────────────────────────────────────────────
   validate:
