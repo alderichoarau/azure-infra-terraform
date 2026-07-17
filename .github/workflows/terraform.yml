@@ -77,8 +77,10 @@ jobs:
         if: inputs.action == 'plan'
         run: |
           terraform plan \
+            -input=false \
             -var="owner=${{ secrets.AZURE_OWNER }}" \
             -var="resource_group_name=${{ secrets.AZURE_RG_NAME }}" \
+            -var="alert_email=${{ secrets.AZURE_ALERT_EMAIL }}" \
             -out=tfplan \
             -no-color \
             | tee plan_output.txt
@@ -111,8 +113,10 @@ jobs:
         if: inputs.action == 'apply'
         run: |
           terraform apply \
+            -input=false \
             -var="owner=${{ secrets.AZURE_OWNER }}" \
             -var="resource_group_name=${{ secrets.AZURE_RG_NAME }}" \
+            -var="alert_email=${{ secrets.AZURE_ALERT_EMAIL }}" \
             -auto-approve \
             -no-color \
             | tee apply_output.txt
@@ -122,8 +126,10 @@ jobs:
         if: inputs.action == 'destroy'
         run: |
           terraform destroy \
+            -input=false \
             -var="owner=${{ secrets.AZURE_OWNER }}" \
             -var="resource_group_name=${{ secrets.AZURE_RG_NAME }}" \
+            -var="alert_email=${{ secrets.AZURE_ALERT_EMAIL }}" \
             -auto-approve \
             -no-color \
             | tee destroy_output.txt
