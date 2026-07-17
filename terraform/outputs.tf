@@ -42,3 +42,20 @@ output "nsg_name" {
   description = "Name of the NSG attached to subnet-frontend"
   value       = module.network.nsg_frontend_name
 }
+
+output "law_id" {
+  description = "ID of the Log Analytics Workspace"
+  value       = azurerm_log_analytics_workspace.law.id
+}
+
+output "app_insights_connection_string" {
+  description = "Connection string of the App Service's Application Insights"
+  value       = azurerm_application_insights.app.connection_string
+  sensitive   = true
+}
+
+output "func_insights_connection_string" {
+  description = "Connection string of the Function App's Application Insights"
+  value       = azurerm_application_insights.func.connection_string
+  sensitive   = true
+}

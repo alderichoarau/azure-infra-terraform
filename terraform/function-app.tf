@@ -8,5 +8,8 @@ module "function_app" {
   resource_group_name  = data.azurerm_resource_group.rg.name
   location             = var.location
   service_plan_id      = data.azurerm_service_plan.shared.id
-  tags                 = local.tags
+  app_settings = {
+    APPLICATIONINSIGHTS_CONNECTION_STRING = azurerm_application_insights.func.connection_string
+  }
+  tags = local.tags
 }

@@ -19,6 +19,9 @@ resource_group_name = "rg-prenom-nom"
 #   project = "tp-azure"
 # }
 
+# Email that receives Azure Monitor alert notifications
+alert_email = "ton.email@example.com"
+
 # automation_only is intentionally NOT set here — it's a guard that only the
 # CI pipeline sets (TF_VAR_automation_only=true) to block accidental local
 # plan/apply/destroy. See variables.tf for details.

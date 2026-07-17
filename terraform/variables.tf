@@ -37,6 +37,16 @@ variable "tags" {
   default     = {}
 }
 
+variable "alert_email" {
+  description = "Email address that receives Azure Monitor alert notifications"
+  type        = string
+
+  validation {
+    condition     = can(regex("^[^@]+@[^@]+\\.[^@]+$", var.alert_email))
+    error_message = "alert_email must look like a valid email address."
+  }
+}
+
 # tflint-ignore: terraform_unused_declarations # only referenced in its own validation block below, never consumed by a resource
 variable "automation_only" {
   description = "Guard against accidental local apply/destroy — set to true only by the CI pipeline (TF_VAR_automation_only)."
