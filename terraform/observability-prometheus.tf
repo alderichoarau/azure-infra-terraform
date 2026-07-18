@@ -36,7 +36,12 @@ resource "azurerm_monitor_workspace" "amw" {
 # ── Grafana managé ────────────────────────────────────────────────────────────
 
 resource "azurerm_dashboard_grafana" "grafana" {
-  name                  = "grafana-${var.owner}-tf"
+  # Azure Managed Grafana impose un nom de 2 à 23 caractères (lettres/chiffres/tirets) —
+  # bien plus court que les autres ressources de ce fichier. "grafana-${owner}-tf" dépasse
+  # cette limite dès que owner fait plus de ~11 caractères ; on retire les tirets et le
+  # suffixe "-tf" puis on tronque, pour rester dans la limite quelle que soit la longueur
+  # de var.owner (garanti alphanumérique, donc jamais de tiret final après troncature).
+  name                  = substr("grafana${replace(var.owner, "-", "")}", 0, 23)
   resource_group_name   = data.azurerm_resource_group.rg.name
   location              = var.location
   grafana_major_version = "11" # obligatoire en azurerm ~> 4.0 ; seules "11" et "12" sont acceptées par le provider installé (confirmé par terraform validate — 9 et 10 ne sont plus proposés)
@@ -192,6 +197,7 @@ resource "azurerm_monitor_alert_prometheus_rule_group" "alerte_erreurs" {
     enabled    = true
     expression = "log_erreurs_total > 5"
     severity   = 2
+    alert      = "alerte-erreurs-${var.owner}" # obligatoire : une rule est soit une "alert" (alerting rule), soit un "record" (recording rule) — jamais les deux, jamais ni l'un ni l'autre
 
     action {
       action_group_id = azurerm_monitor_action_group.team.id
