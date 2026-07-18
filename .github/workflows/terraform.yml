@@ -12,6 +12,11 @@ on:
           - plan
           - apply
           - destroy
+      prometheus_vm_size:
+        description: "Prometheus VM size — B-series is blocked on this subscription (capacity/NotAvailableForSubscription in francecentral), default is D2s_v3"
+        required: false
+        type: string
+        default: "Standard_D2s_v3"
 
 permissions:
   id-token: write  # OIDC token for Azure login
@@ -82,6 +87,7 @@ jobs:
             -var="resource_group_name=${{ secrets.AZURE_RG_NAME }}" \
             -var="alert_email=${{ secrets.AZURE_ALERT_EMAIL }}" \
             -var="trainer_ip_cidr=${{ secrets.TRAINER_IP_CIDR }}" \
+            -var="prometheus_vm_size=${{ inputs.prometheus_vm_size }}" \
             -out=tfplan \
             -no-color \
             | tee plan_output.txt
@@ -119,6 +125,7 @@ jobs:
             -var="resource_group_name=${{ secrets.AZURE_RG_NAME }}" \
             -var="alert_email=${{ secrets.AZURE_ALERT_EMAIL }}" \
             -var="trainer_ip_cidr=${{ secrets.TRAINER_IP_CIDR }}" \
+            -var="prometheus_vm_size=${{ inputs.prometheus_vm_size }}" \
             -auto-approve \
             -no-color \
             | tee apply_output.txt
@@ -133,6 +140,7 @@ jobs:
             -var="resource_group_name=${{ secrets.AZURE_RG_NAME }}" \
             -var="alert_email=${{ secrets.AZURE_ALERT_EMAIL }}" \
             -var="trainer_ip_cidr=${{ secrets.TRAINER_IP_CIDR }}" \
+            -var="prometheus_vm_size=${{ inputs.prometheus_vm_size }}" \
             -auto-approve \
             -no-color \
             | tee destroy_output.txt

@@ -143,7 +143,7 @@ resource "azurerm_linux_virtual_machine" "prometheus" {
   name                  = "vm-prometheus-${var.owner}-tf"
   resource_group_name   = data.azurerm_resource_group.rg.name
   location              = var.location
-  size                  = "Standard_B1s"
+  size                  = var.prometheus_vm_size
   admin_username        = "azureuser"
   network_interface_ids = [azurerm_network_interface.prometheus_vm.id]
   tags                  = local.tags

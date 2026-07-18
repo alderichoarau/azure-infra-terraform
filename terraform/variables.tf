@@ -37,6 +37,12 @@ variable "tags" {
   default     = {}
 }
 
+variable "prometheus_vm_size" {
+  description = "VM size for the Prometheus VM. Defaults to Standard_D2s_v3 (broadly available general-purpose size) rather than a B-series burstable size: on this training subscription, Standard_B1s hit a capacity restriction and every Standard_B*_v2 size is flagged NotAvailableForSubscription in francecentral (checked with `az vm list-skus --location francecentral --size Standard_B --resource-type virtualMachines --output table`) — a subscription-level block, not per-learner, so it would likely hit everyone the same way."
+  type        = string
+  default     = "Standard_D2s_v3"
+}
+
 variable "trainer_ip_cidr" {
   description = "CIDR autorisé en SSH (22) sur la VM Prometheus — restreindre à l'IP de la salle/du formateur, jamais 0.0.0.0/0 en usage réel."
   type        = string
