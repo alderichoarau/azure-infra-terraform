@@ -76,6 +76,8 @@ The HCP Terraform workspace (`azure-infra-alderic-hoarau`) runs in **local execu
 | `AZURE_SUBSCRIPTION_ID` | Subscription ID |
 | `AZURE_OWNER` | Learner identifier (`first-last`) |
 | `AZURE_RG_NAME` | Resource Group name (`rg-first-last`) |
+| `AZURE_ALERT_EMAIL` | Email address that receives Azure Monitor alert notifications (was already required by `alert_email` in `variables.tf`, missing from this table until now) |
+| `TRAINER_IP_CIDR` | CIDR allowed for SSH (22) on the Prometheus VM, e.g. `203.0.113.4/32` — never `0.0.0.0/0` |
 | `TF_API_TOKEN` | HCP Terraform team token, exposed as `TF_TOKEN_app_terraform_io` for state/run access |
 | `INFRACOST_API_KEY` | Infracost API key (cost estimation on PRs) |
 

@@ -81,6 +81,7 @@ jobs:
             -var="owner=${{ secrets.AZURE_OWNER }}" \
             -var="resource_group_name=${{ secrets.AZURE_RG_NAME }}" \
             -var="alert_email=${{ secrets.AZURE_ALERT_EMAIL }}" \
+            -var="trainer_ip_cidr=${{ secrets.TRAINER_IP_CIDR }}" \
             -out=tfplan \
             -no-color \
             | tee plan_output.txt
@@ -117,6 +118,7 @@ jobs:
             -var="owner=${{ secrets.AZURE_OWNER }}" \
             -var="resource_group_name=${{ secrets.AZURE_RG_NAME }}" \
             -var="alert_email=${{ secrets.AZURE_ALERT_EMAIL }}" \
+            -var="trainer_ip_cidr=${{ secrets.TRAINER_IP_CIDR }}" \
             -auto-approve \
             -no-color \
             | tee apply_output.txt
@@ -130,6 +132,7 @@ jobs:
             -var="owner=${{ secrets.AZURE_OWNER }}" \
             -var="resource_group_name=${{ secrets.AZURE_RG_NAME }}" \
             -var="alert_email=${{ secrets.AZURE_ALERT_EMAIL }}" \
+            -var="trainer_ip_cidr=${{ secrets.TRAINER_IP_CIDR }}" \
             -auto-approve \
             -no-color \
             | tee destroy_output.txt
