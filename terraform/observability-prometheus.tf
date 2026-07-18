@@ -7,11 +7,15 @@
 # et deux stades pédagogiques différents du TP observabilité — garder le diff propre et
 # le fichier existant intact.
 #
-# Prérequis opérationnel non couvert par ce fichier : le principal utilisé pour
-# terraform apply (Service Principal OIDC en CI, ou l'utilisateur en local) doit avoir
-# le droit d'assigner des rôles sur le Resource Group (ex: "User Access Administrator"
-# en plus de Contributor) — sans ça, les deux azurerm_role_assignment plus bas échouent
-# avec une erreur d'autorisation, pas une erreur de syntaxe.
+# Prérequis opérationnel non couvert par ce fichier — et plus large qu'il n'y paraît :
+# azurerm_monitor_workspace crée son Data Collection Rule par défaut dans un resource
+# group managé séparé, généré par Azure (ex: "MA_amw-<owner>-tf_<region>_managed"),
+# PAS dans data.azurerm_resource_group.rg. "User Access Administrator" donné seulement
+# sur le RG de l'apprenant ne couvre donc pas ce RG managé (il n'existe même pas encore
+# au moment où on donnerait ce droit). Il faut ce rôle (ou "Role Based Access Control
+# Administrator", plus restreint et suffisant ici) au niveau de l'ABONNEMENT pour le
+# principal qui fait terraform apply — sans ça, azurerm_role_assignment.prometheus_publisher
+# échoue en 403 AuthorizationFailed, même si Contributor + UAA sont bien présents sur le RG.
 #
 # Authentification remote_write : validée par Microsoft pour VM/VMSS et AKS avec identité
 # managée — pas (encore) pour Container Apps, d'où le choix d'une VM ici plutôt qu'un
@@ -44,7 +48,7 @@ resource "azurerm_dashboard_grafana" "grafana" {
   name                  = substr("grafana${replace(var.owner, "-", "")}", 0, 23)
   resource_group_name   = data.azurerm_resource_group.rg.name
   location              = var.location
-  grafana_major_version = "11" # obligatoire en azurerm ~> 4.0 ; seules "11" et "12" sont acceptées par le provider installé (confirmé par terraform validate — 9 et 10 ne sont plus proposés)
+  grafana_major_version = "12" # les versions valides évoluent régulièrement côté Azure (11→12→13 constaté en quelques jours sur ce repo) ; confirmé par l'erreur Azure elle-même à l'apply, plus fiable que la doc — si ça re-casse un jour, le message d'erreur donnera les valeurs valides du moment
   tags                  = local.tags
 
   identity {
