@@ -94,6 +94,8 @@ resource "azurerm_public_ip" "prometheus_vm" {
 }
 
 resource "azurerm_network_interface" "prometheus_vm" {
+  # checkov:skip=CKV_AZURE_119: IP publique nécessaire (scrape sortant vers l'App Service +
+  # SSH de dépannage) sur ce TP éphémère ; à revoir (Bastion / NAT Gateway) pour un usage réel
   name                = "nic-prometheus-${var.owner}-tf"
   resource_group_name = data.azurerm_resource_group.rg.name
   location            = var.location

@@ -35,7 +35,7 @@ resource "azurerm_monitor_diagnostic_setting" "app_service" {
   target_resource_id         = module.app_service.id
   log_analytics_workspace_id = azurerm_log_analytics_workspace.law.id
 
-  metric {
+  enabled_metric {
     category = "AllMetrics"
   }
 }
@@ -45,7 +45,7 @@ resource "azurerm_monitor_diagnostic_setting" "function_app" {
   target_resource_id         = module.function_app.id
   log_analytics_workspace_id = azurerm_log_analytics_workspace.law.id
 
-  metric {
+  enabled_metric {
     category = "AllMetrics"
   }
 }
@@ -55,7 +55,7 @@ resource "azurerm_monitor_diagnostic_setting" "storage_blob" {
   target_resource_id         = "${module.storage.storage_account_id}/blobServices/default"
   log_analytics_workspace_id = azurerm_log_analytics_workspace.law.id
 
-  metric {
+  enabled_metric {
     category = "AllMetrics"
   }
 }
