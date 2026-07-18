@@ -37,6 +37,16 @@ variable "tags" {
   default     = {}
 }
 
+variable "trainer_ip_cidr" {
+  description = "CIDR autorisé en SSH (22) sur la VM Prometheus — restreindre à l'IP de la salle/du formateur, jamais 0.0.0.0/0 en usage réel."
+  type        = string
+
+  validation {
+    condition     = can(cidrhost(var.trainer_ip_cidr, 0))
+    error_message = "trainer_ip_cidr must be a valid CIDR block, e.g. \"203.0.113.4/32\"."
+  }
+}
+
 variable "alert_email" {
   description = "Email address that receives Azure Monitor alert notifications"
   type        = string

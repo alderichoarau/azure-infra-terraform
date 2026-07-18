@@ -19,6 +19,10 @@ Terraform mirror of the [azure-infra-cli](https://github.com/hoaraualderic/azure
 | Static Web App | `stapp-<owner>-tf` | Static site (Free tier) |
 | Container Instance | `aci-<owner>-tf` | nginx:1.27-alpine, publicly exposed |
 | VNet + subnets + NSG | `vnet-<owner>-tf` | Network with subnet-frontend and subnet-backend |
+| Log Analytics + Application Insights (x2) + Availability Tests + alerts | `law-<owner>-tf`, `appi-app/func-<owner>-tf` | Observability stack — see [observability.tf](terraform/observability.tf), corrigé for the `tp-observability` TP |
+| Azure Monitor Workspace (managed Prometheus) | `amw-<owner>-tf` | Metrics backend fed by the Prometheus VM's `remote_write` — see [observability-prometheus.tf](terraform/observability-prometheus.tf) |
+| Azure Managed Grafana | `grafana-<owner>-tf` | Unified dashboard: Azure Monitor Logs (KQL) + Azure Monitor Workspace (PromQL) |
+| Prometheus VM (self-hosted, subnet-backend) | `vm-prometheus-<owner>-tf` | Scrapes the App Service's `/metrics` and remote-writes to the Monitor Workspace via managed identity — self-configuring at boot, see [templates/prometheus-cloud-init.sh.tpl](terraform/templates/prometheus-cloud-init.sh.tpl) |
 
 > The Resource Group and the App Service Plan are **pre-created by the trainer** — Terraform does not manage them.
 
@@ -29,6 +33,7 @@ Terraform mirror of the [azure-infra-cli](https://github.com/hoaraualderic/azure
 - An [HCP Terraform](https://app.terraform.io) account with access to the `alderic-hoarau` organization (`terraform login`)
 - **Contributor** role on the target Resource Group
 - **Storage Blob Data Owner** and **Storage Queue Data Contributor** roles on the target Resource Group — required because the storage accounts have `shared_access_key_enabled = false`; the `azurerm` provider authenticates to the storage data plane via Azure AD (`storage_use_azuread = true` in [providers.tf](terraform/providers.tf)) instead of account keys
+- **User Access Administrator** (or equivalent custom role) on the target Resource Group — required by [observability-prometheus.tf](terraform/observability-prometheus.tf) to create the two `azurerm_role_assignment` resources (Grafana → Monitoring Reader, Prometheus VM → Monitoring Metrics Publisher). Plain Contributor cannot assign roles; without this, `apply` fails with an authorization error on those two resources specifically, not a syntax error
 
 ## Local Git hooks
 

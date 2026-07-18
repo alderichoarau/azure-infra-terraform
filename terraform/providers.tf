@@ -6,6 +6,12 @@ terraform {
       source  = "hashicorp/azurerm"
       version = "~> 4.0"
     }
+    # Génère la paire de clés SSH de la VM Prometheus (observability-prometheus.tf) —
+    # évite un file("~/.ssh/id_rsa.pub") qui casserait en CI (pas de clé locale sur le runner).
+    tls = {
+      source  = "hashicorp/tls"
+      version = "~> 4.0"
+    }
   }
 }
 
