@@ -159,6 +159,28 @@ resource "azurerm_network_security_rule" "allow_ssh_prometheus_from_trainer" {
   network_security_group_name = data.azurerm_network_security_group.backend.name
 }
 
+# Même NSG partagé, mais en sortie cette fois : Deny-All-Outbound (priorité 4000)
+# bloque tout le trafic Internet sortant du subnet-backend, pas seulement l'entrée.
+# Sans exception ici, le cloud-init de la VM Prometheus ne peut ni installer de
+# paquets (apt vers azure.archive.ubuntu.com), ni télécharger le binaire Prometheus,
+# ni interroger l'ARM (management.azure.com, pour résoudre le DCE/DCR), ni scraper
+# l'App Service en HTTPS — le script échoue en silence et le service systemd
+# "prometheus" n'est jamais créé. (az login --identity passe malgré tout : l'IMDS,
+# 169.254.169.254, ne transite pas par le NSG.)
+resource "azurerm_network_security_rule" "allow_outbound_internet_prometheus" {
+  name                        = "Allow-Outbound-Internet-Prometheus"
+  priority                    = 200 # espace de priorité indépendant des règles Inbound
+  direction                   = "Outbound"
+  access                      = "Allow"
+  protocol                    = "Tcp"
+  source_port_range           = "*"
+  destination_port_ranges     = ["80", "443"]
+  source_address_prefix       = "*"
+  destination_address_prefix  = "*"
+  resource_group_name         = data.azurerm_resource_group.rg.name
+  network_security_group_name = data.azurerm_network_security_group.backend.name
+}
+
 # ── Clé SSH générée par Terraform ─────────────────────────────────────────────
 # Volontairement pas de file("~/.ssh/id_rsa.pub") : ce repo tourne aussi en CI
 # (automation_only), où aucune clé locale n'existe sur le runner. La clé privée
