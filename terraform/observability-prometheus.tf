@@ -179,6 +179,14 @@ resource "azurerm_network_security_rule" "allow_outbound_internet_prometheus" {
   destination_address_prefix  = "*"
   resource_group_name         = data.azurerm_resource_group.rg.name
   network_security_group_name = data.azurerm_network_security_group.backend.name
+
+  # Azure verrouille le NSG parent le temps d'appliquer une security_rule : deux
+  # azurerm_network_security_rule ciblant le MÊME NSG (ici nsg-backend-*, partagé avec
+  # la règle SSH ci-dessus) sans dépendance explicite entre elles peuvent être envoyées
+  # en parallèle par Terraform et se percuter côté API Azure (une des deux échoue/est
+  # ignorée selon la course) — observé en pratique : une des deux règles manquait à
+  # chaque apply, jamais la même. On force donc l'ordre plutôt que de laisser faire.
+  depends_on = [azurerm_network_security_rule.allow_ssh_prometheus_from_trainer]
 }
 
 # ── Clé SSH générée par Terraform ─────────────────────────────────────────────
