@@ -136,6 +136,13 @@ resource "azurerm_network_interface_security_group_association" "prometheus_vm" 
 data "azurerm_network_security_group" "backend" {
   name                = module.network.nsg_backend_name
   resource_group_name = data.azurerm_resource_group.rg.name
+
+  # "nsg-backend-${var.name}" est un nom entièrement connu à partir de la config (pas un
+  # attribut calculé par Azure) : sans depends_on, Terraform ne crée aucune dépendance
+  # implicite sur module.network et lit cette data source dès le plan, avant que le NSG
+  # existe réellement (cas vécu après un destroy : "was not found" au premier apply
+  # suivant, alors que module.network.backend est bien dans le même plan).
+  depends_on = [module.network]
 }
 
 resource "azurerm_network_security_rule" "allow_ssh_prometheus_from_trainer" {
