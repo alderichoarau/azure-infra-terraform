@@ -65,11 +65,28 @@ resource "azurerm_role_assignment" "grafana_monitoring_reader" {
 }
 
 # ── Réseau dédié à la VM Prometheus ────────────────────────────────────────────
-# Rattachée au subnet-backend existant (module.network) plutôt qu'un nouveau VNet :
-# c'est un service interne, pas user-facing. Le NSG backend partagé fait deny-all
-# inbound par défaut (cf. terraform-azurerm-network) — on ajoute une association
-# NSG dédiée à cette seule interface pour autoriser SSH, sans toucher au NSG partagé
-# utilisé par d'autres ressources du backend.
+# Subnet dédié plutôt que subnet-backend partagé (module.network) : ce dernier a
+# son propre NSG avec des blocs security_rule INLINE (Allow-From-Frontend,
+# Deny-All-Inbound, Deny-All-Outbound), et AzureRM déconseille explicitement de
+# mélanger security_rule inline sur azurerm_network_security_group et des
+# azurerm_network_security_rule autonomes sur le même NSG : les deux se battent
+# pour l'état de la liste de règles à chaque apply (l'un la déclare de façon
+# exhaustive, l'autre y ajoute "hors module"), ce qui a produit en pratique un
+# comportement instable — une des deux règles ajoutées disparaissait à chaque
+# apply, jamais la même. Un subnet dédié avec uniquement notre propre NSG
+# (jamais partagé avec une autre resource Terraform) élimine le conflit : un
+# seul propriétaire de la liste de règles, point.
+#
+# 10.0.3.0/24 : libre dans l'address space du VNet (10.0.0.0/16), à côté de
+# subnet-frontend (10.0.1.0/24) et subnet-backend (10.0.2.0/24, cf. defaults du
+# module network).
+
+resource "azurerm_subnet" "prometheus" {
+  name                 = "subnet-prometheus"
+  resource_group_name  = data.azurerm_resource_group.rg.name
+  virtual_network_name = module.network.vnet_name
+  address_prefixes     = ["10.0.3.0/24"]
+}
 
 resource "azurerm_network_security_group" "prometheus_vm" {
   # checkov:skip=CKV_AZURE_10: SSH ouvert pour les besoins du TP (dépannage) — à restreindre
@@ -90,6 +107,18 @@ resource "azurerm_network_security_group" "prometheus_vm" {
     source_address_prefix      = var.trainer_ip_cidr
     destination_address_prefix = "*"
   }
+
+  # Pas de règle Outbound explicite : les règles par défaut d'Azure
+  # (AllowInternetOutBound, priorité 65001) s'appliquent donc telles quelles —
+  # c'est ce qu'on veut, la VM a besoin d'Internet sortant (apt, binaire
+  # Prometheus, ARM pour le DCE/DCR, scrape HTTPS de l'App Service, remote_write).
+  # Un Deny-All-Outbound explicite ici demanderait de ré-ouvrir 80/443 nous-mêmes,
+  # pour un gain de sécurité marginal sur une VM de TP éphémère.
+}
+
+resource "azurerm_subnet_network_security_group_association" "prometheus" {
+  subnet_id                 = azurerm_subnet.prometheus.id
+  network_security_group_id = azurerm_network_security_group.prometheus_vm.id
 }
 
 resource "azurerm_public_ip" "prometheus_vm" {
@@ -112,7 +141,7 @@ resource "azurerm_network_interface" "prometheus_vm" {
 
   ip_configuration {
     name                          = "internal"
-    subnet_id                     = module.network.subnet_backend_id
+    subnet_id                     = azurerm_subnet.prometheus.id
     private_ip_address_allocation = "Dynamic"
     public_ip_address_id          = azurerm_public_ip.prometheus_vm.id
   }
@@ -121,72 +150,6 @@ resource "azurerm_network_interface" "prometheus_vm" {
 resource "azurerm_network_interface_security_group_association" "prometheus_vm" {
   network_interface_id      = azurerm_network_interface.prometheus_vm.id
   network_security_group_id = azurerm_network_security_group.prometheus_vm.id
-}
-
-# Azure applique le NSG du subnet ET celui de la NIC sur le trafic entrant — les deux
-# doivent autoriser pour que le paquet passe. Le NSG attaché à subnet-backend
-# (nsg-backend-<owner>-tf, défini dans le module network) n'autorise en entrée QUE
-# depuis subnet-frontend et deny-all le reste en priorité 4000 : sans cette règle,
-# le SSH depuis Internet est silencieusement droppé au niveau du subnet, même avec
-# Allow-SSH correctement configuré sur le NSG dédié à la NIC ci-dessus (timeout, pas
-# de refus explicite — c'est ce qu'on observait). On ajoute donc une règle sur ce NSG
-# partagé plutôt que de dupliquer/modifier le module, via azurerm_network_security_rule
-# qui permet d'ajouter une règle à un NSG existant sans en prendre la propriété complète.
-
-data "azurerm_network_security_group" "backend" {
-  name                = module.network.nsg_backend_name
-  resource_group_name = data.azurerm_resource_group.rg.name
-
-  # "nsg-backend-${var.name}" est un nom entièrement connu à partir de la config (pas un
-  # attribut calculé par Azure) : sans depends_on, Terraform ne crée aucune dépendance
-  # implicite sur module.network et lit cette data source dès le plan, avant que le NSG
-  # existe réellement (cas vécu après un destroy : "was not found" au premier apply
-  # suivant, alors que module.network.backend est bien dans le même plan).
-  depends_on = [module.network]
-}
-
-resource "azurerm_network_security_rule" "allow_ssh_prometheus_from_trainer" {
-  name                        = "Allow-SSH-Prometheus-Trainer"
-  priority                    = 200 # sous 4000 (Deny-All-Inbound) ; au-dessus de 100 (Allow-From-Frontend) pour éviter tout conflit de priorité
-  direction                   = "Inbound"
-  access                      = "Allow"
-  protocol                    = "Tcp"
-  source_port_range           = "*"
-  destination_port_range      = "22"
-  source_address_prefix       = var.trainer_ip_cidr
-  destination_address_prefix  = "*"
-  resource_group_name         = data.azurerm_resource_group.rg.name
-  network_security_group_name = data.azurerm_network_security_group.backend.name
-}
-
-# Même NSG partagé, mais en sortie cette fois : Deny-All-Outbound (priorité 4000)
-# bloque tout le trafic Internet sortant du subnet-backend, pas seulement l'entrée.
-# Sans exception ici, le cloud-init de la VM Prometheus ne peut ni installer de
-# paquets (apt vers azure.archive.ubuntu.com), ni télécharger le binaire Prometheus,
-# ni interroger l'ARM (management.azure.com, pour résoudre le DCE/DCR), ni scraper
-# l'App Service en HTTPS — le script échoue en silence et le service systemd
-# "prometheus" n'est jamais créé. (az login --identity passe malgré tout : l'IMDS,
-# 169.254.169.254, ne transite pas par le NSG.)
-resource "azurerm_network_security_rule" "allow_outbound_internet_prometheus" {
-  name                        = "Allow-Outbound-Internet-Prometheus"
-  priority                    = 200 # espace de priorité indépendant des règles Inbound
-  direction                   = "Outbound"
-  access                      = "Allow"
-  protocol                    = "Tcp"
-  source_port_range           = "*"
-  destination_port_ranges     = ["80", "443"]
-  source_address_prefix       = "*"
-  destination_address_prefix  = "*"
-  resource_group_name         = data.azurerm_resource_group.rg.name
-  network_security_group_name = data.azurerm_network_security_group.backend.name
-
-  # Azure verrouille le NSG parent le temps d'appliquer une security_rule : deux
-  # azurerm_network_security_rule ciblant le MÊME NSG (ici nsg-backend-*, partagé avec
-  # la règle SSH ci-dessus) sans dépendance explicite entre elles peuvent être envoyées
-  # en parallèle par Terraform et se percuter côté API Azure (une des deux échoue/est
-  # ignorée selon la course) — observé en pratique : une des deux règles manquait à
-  # chaque apply, jamais la même. On force donc l'ordre plutôt que de laisser faire.
-  depends_on = [azurerm_network_security_rule.allow_ssh_prometheus_from_trainer]
 }
 
 # ── Clé SSH générée par Terraform ─────────────────────────────────────────────
