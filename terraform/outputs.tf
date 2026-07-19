@@ -70,6 +70,16 @@ output "grafana_endpoint" {
   value       = azurerm_dashboard_grafana.grafana.endpoint
 }
 
+output "monitor_workspace_dce_id" {
+  description = "ID of the auto-created Data Collection Endpoint — used for manual `az monitor data-collection endpoint show --ids ...` troubleshooting on the Prometheus VM"
+  value       = azurerm_monitor_workspace.amw.default_data_collection_endpoint_id
+}
+
+output "monitor_workspace_dcr_id" {
+  description = "ID of the auto-created Data Collection Rule — used for manual `az monitor data-collection rule show --ids ...` troubleshooting on the Prometheus VM"
+  value       = azurerm_monitor_workspace.amw.default_data_collection_rule_id
+}
+
 output "prometheus_vm_public_ip" {
   description = "Public IP of the Prometheus VM — for SSH troubleshooting only, the remote_write pipeline is self-configuring via cloud-init"
   value       = azurerm_public_ip.prometheus_vm.ip_address

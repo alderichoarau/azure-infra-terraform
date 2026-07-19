@@ -215,6 +215,28 @@ resource "azurerm_role_assignment" "prometheus_publisher" {
   principal_id         = azurerm_linux_virtual_machine.prometheus.identity[0].principal_id
 }
 
+# Monitoring Metrics Publisher (ci-dessus) est un rôle data-plane : il autorise le
+# remote_write (écriture des métriques) mais PAS la lecture des ressources DCE/DCR
+# elles-mêmes (Microsoft.Insights/dataCollectionEndpoints/read et
+# .../dataCollectionRules/read). Sans ça, le cloud-init (az monitor data-collection
+# endpoint/rule show, pour résoudre l'URL d'ingestion et l'immutableId) échoue en
+# AuthorizationFailed avec la même identité managée — testé en conditions réelles sur
+# la VM. Monitoring Reader couvre ces deux actions de lecture ; on le scope aux deux
+# ressources précises plutôt qu'au RG managé entier (MA_<workspace>_<region>_managed,
+# non modélisé comme resource Terraform ici) pour rester au plus près du besoin réel.
+
+resource "azurerm_role_assignment" "prometheus_dce_reader" {
+  scope                = azurerm_monitor_workspace.amw.default_data_collection_endpoint_id
+  role_definition_name = "Monitoring Reader"
+  principal_id         = azurerm_linux_virtual_machine.prometheus.identity[0].principal_id
+}
+
+resource "azurerm_role_assignment" "prometheus_dcr_reader" {
+  scope                = azurerm_monitor_workspace.amw.default_data_collection_rule_id
+  role_definition_name = "Monitoring Reader"
+  principal_id         = azurerm_linux_virtual_machine.prometheus.identity[0].principal_id
+}
+
 # ── Alerte sur la métrique custom exposée par l'app (log_erreurs_total) ───────
 # Réutilise l'Action Group "team" défini dans observability.tf — pas de doublon.
 

@@ -28,8 +28,13 @@ for i in $(seq 1 10); do
   sleep 15
 done
 
-DCE_ENDPOINT=$(az monitor data-collection-endpoint show --ids "${dce_id}" --query metricsIngestionEndpoint -o tsv)
-DCR_IMMUTABLE_ID=$(az monitor data-collection-rule show --ids "${dcr_id}" --query immutableId -o tsv)
+# Syntaxe CLI vérifiée manuellement sur la VM (az cli 2.88.0) : le groupe est
+# "data-collection endpoint"/"data-collection rule" (mots séparés), pas
+# "data-collection-endpoint"/"data-collection-rule" (un seul mot à tiret) —
+# l'ancienne syntaxe (extension monitor-control-service, avant fusion dans le
+# coeur d'az cli) renvoie "not recognized by the system".
+DCE_ENDPOINT=$(az monitor data-collection endpoint show --ids "${dce_id}" --query metricsIngestionEndpoint -o tsv)
+DCR_IMMUTABLE_ID=$(az monitor data-collection rule show --ids "${dcr_id}" --query immutableId -o tsv)
 
 cat > /etc/prometheus/prometheus.yml <<PROMCONF
 global:
