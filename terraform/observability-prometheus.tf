@@ -123,6 +123,35 @@ resource "azurerm_network_interface_security_group_association" "prometheus_vm" 
   network_security_group_id = azurerm_network_security_group.prometheus_vm.id
 }
 
+# Azure applique le NSG du subnet ET celui de la NIC sur le trafic entrant — les deux
+# doivent autoriser pour que le paquet passe. Le NSG attaché à subnet-backend
+# (nsg-backend-<owner>-tf, défini dans le module network) n'autorise en entrée QUE
+# depuis subnet-frontend et deny-all le reste en priorité 4000 : sans cette règle,
+# le SSH depuis Internet est silencieusement droppé au niveau du subnet, même avec
+# Allow-SSH correctement configuré sur le NSG dédié à la NIC ci-dessus (timeout, pas
+# de refus explicite — c'est ce qu'on observait). On ajoute donc une règle sur ce NSG
+# partagé plutôt que de dupliquer/modifier le module, via azurerm_network_security_rule
+# qui permet d'ajouter une règle à un NSG existant sans en prendre la propriété complète.
+
+data "azurerm_network_security_group" "backend" {
+  name                = module.network.nsg_backend_name
+  resource_group_name = data.azurerm_resource_group.rg.name
+}
+
+resource "azurerm_network_security_rule" "allow_ssh_prometheus_from_trainer" {
+  name                        = "Allow-SSH-Prometheus-Trainer"
+  priority                    = 200 # sous 4000 (Deny-All-Inbound) ; au-dessus de 100 (Allow-From-Frontend) pour éviter tout conflit de priorité
+  direction                   = "Inbound"
+  access                      = "Allow"
+  protocol                    = "Tcp"
+  source_port_range           = "*"
+  destination_port_range      = "22"
+  source_address_prefix       = var.trainer_ip_cidr
+  destination_address_prefix  = "*"
+  resource_group_name         = data.azurerm_resource_group.rg.name
+  network_security_group_name = data.azurerm_network_security_group.backend.name
+}
+
 # ── Clé SSH générée par Terraform ─────────────────────────────────────────────
 # Volontairement pas de file("~/.ssh/id_rsa.pub") : ce repo tourne aussi en CI
 # (automation_only), où aucune clé locale n'existe sur le runner. La clé privée
