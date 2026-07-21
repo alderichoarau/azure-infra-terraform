@@ -12,11 +12,17 @@ apt-get install -y wget curl
 # Azure CLI (nécessaire pour résoudre l'endpoint remote_write via l'identité managée)
 curl -sL https://aka.ms/InstallAzureCLIDeb | bash
 
-# Binaire Prometheus
+# Binaire Prometheus — 3.12.0, PAS 2.53.0 : l'authentification remote_write par identité
+# managée SYSTÈME (notre cas, VM avec identity { type = "SystemAssigned" } et
+# managed_identity.client_id = "" dans prometheus.yml) nécessite Prometheus 3.50+ d'après
+# la doc Microsoft (https://learn.microsoft.com/azure/azure-monitor/metrics/prometheus-remote-write,
+# table "Supported versions") — 2.53.0 ne supporte que l'identité managée UTILISATEUR
+# (client_id non vide) et plante au démarrage avec "must provide an Azure Managed Identity
+# client_id in the Azure AD config". Confirmé en conditions réelles sur cette VM.
 cd /tmp
-wget -q https://github.com/prometheus/prometheus/releases/download/v2.53.0/prometheus-2.53.0.linux-amd64.tar.gz
-tar xzf prometheus-2.53.0.linux-amd64.tar.gz
-cp prometheus-2.53.0.linux-amd64/prometheus /usr/local/bin/
+wget -q https://github.com/prometheus/prometheus/releases/download/v3.12.0/prometheus-3.12.0.linux-amd64.tar.gz
+tar xzf prometheus-3.12.0.linux-amd64.tar.gz
+cp prometheus-3.12.0.linux-amd64/prometheus /usr/local/bin/
 mkdir -p /etc/prometheus /var/lib/prometheus
 
 # L'attribution du rôle Monitoring Metrics Publisher peut prendre jusqu'à 30 min
