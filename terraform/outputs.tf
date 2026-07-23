@@ -54,11 +54,6 @@ output "function_app_url" {
   value       = "https://${module.function_app.default_hostname}"
 }
 
-output "static_web_app_url" {
-  description = "URL of the Static Web App"
-  value       = "https://${azurerm_static_web_app.stapp.default_host_name}"
-}
-
 output "container_fqdn" {
   description = "FQDN of the Container Instance"
   value       = "http://${module.container.fqdn}"
