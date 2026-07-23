@@ -51,12 +51,6 @@ jobs:
         with:
           terraform_version: ${{ env.TF_VERSION }}
 
-      - name: Setup Infracost
-        if: inputs.action == 'plan'
-        uses: infracost/actions/setup@v4
-        with:
-          api-key: ${{ secrets.INFRACOST_API_KEY }}
-
       - name: Azure Login (OIDC)
         uses: azure/login@v3
         with:
@@ -91,29 +85,6 @@ jobs:
             -out=tfplan \
             -no-color \
             | tee plan_output.txt
-
-      - name: Infracost Cost Estimate
-        if: inputs.action == 'plan'
-        run: |
-          terraform show -json tfplan > tfplan.json
-          infracost breakdown \
-            --path tfplan.json \
-            --format json \
-            --out-file infracost.json
-          infracost output \
-            --path infracost.json \
-            --format table \
-            | tee infracost-summary.txt
-
-      - name: Upload Cost Artifacts
-        if: inputs.action == 'plan'
-        uses: actions/upload-artifact@v7
-        with:
-          name: infracost-${{ github.run_id }}
-          path: |
-            terraform/infracost.json
-            terraform/infracost-summary.txt
-          retention-days: 30
 
       # ── Apply ─────────────────────────────────────────────────────────────────
       - name: Terraform Apply
