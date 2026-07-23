@@ -71,6 +71,16 @@ resource "azurerm_postgresql_flexible_server" "app" {
   tags = local.tags
 
   depends_on = [azurerm_private_dns_zone_virtual_network_link.postgres]
+
+  # Azure auto-assigns an availability zone at creation time even though it's
+  # not set here (no high_availability block = no standby zone to "exchange"
+  # with). On the next apply, the provider then sees state drift on `zone` and
+  # errors with "zone can only be changed when exchanged with the zone
+  # specified in high_availability.0.standby_availability_zone" — a known
+  # azurerm provider limitation, not a real config problem. Ignore it.
+  lifecycle {
+    ignore_changes = [zone]
+  }
 }
 
 resource "azurerm_postgresql_flexible_server_database" "app" {

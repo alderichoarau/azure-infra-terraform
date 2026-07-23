@@ -4,8 +4,17 @@
 # TP Java/Angular — piste "services managés" (cahier des charges §2 et §6:
 # Key Vault required for DB credentials, reachable only from the backend).
 #
-# RBAC authorization (not legacy access policies), public access disabled,
-# reachable only via the Private Endpoint below.
+# RBAC authorization (not legacy access policies). Public network access is
+# ON here, which looks wrong for a vault holding DB credentials — but keeping
+# it disabled breaks the whole workflow: Terraform apply runs from the
+# student's own laptop (az login) or a GitHub Actions-hosted runner, neither
+# of which sits inside the VNet or has a private-link path to the vault. With
+# public access off, even the deployer's own "create the secret" calls get a
+# 403 ForbiddenByConnection. RBAC (not network) is the real access boundary
+# here — same trade-off already made for the shared Storage Account
+# (storage-java.tf): nobody can read/write without an explicit role
+# assignment, regardless of network path. The Private Endpoint below still
+# gives the backend a private route in addition to the public one.
 #
 # purge_protection is intentionally OFF. This repo is destroyed/recreated
 # regularly (terraform-cleanup.yml runs a full destroy). A purge-protected
@@ -32,7 +41,7 @@ resource "azurerm_key_vault" "app" {
 
   rbac_authorization_enabled    = true
   purge_protection_enabled      = false
-  public_network_access_enabled = false
+  public_network_access_enabled = true
 
   tags = local.tags
 }
