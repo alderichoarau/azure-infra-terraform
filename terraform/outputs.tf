@@ -38,6 +38,11 @@ output "key_vault_uri" {
   value       = azurerm_key_vault.app.vault_uri
 }
 
+output "java_uploads_container_url" {
+  description = "URL of the Java TP's container on the shared Storage Account (module.storage) — access is Azure AD/RBAC-only (see storage-java.tf), not network-restricted"
+  value       = "${module.storage.storage_account_name}/${azurerm_storage_container.java_uploads.name}"
+}
+
 output "angular_frontend_url" {
   description = "URL of the Angular Static Web App"
   value       = "https://${azurerm_static_web_app.angular_frontend.default_host_name}"

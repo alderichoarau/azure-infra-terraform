@@ -54,7 +54,12 @@ resource "azurerm_linux_web_app" "java_app" {
   site_config {
     minimum_tls_version = "1.2"
     application_stack {
-      java_version = "21"
+      # java_server = "JAVA" means Java SE (embedded server, runs the app's own
+      # executable jar) rather than Tomcat/JBoss. All three arguments are now
+      # required together, even in this mode.
+      java_server         = "JAVA"
+      java_server_version = "21"
+      java_version        = "21"
     }
 
     # Locked to the Static Web App's own origin — no wildcard, no other domain.
@@ -82,6 +87,8 @@ resource "azurerm_linux_web_app" "java_app" {
     SPRING_DATASOURCE_PASSWORD = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault_secret.postgres_password.versionless_id})"
     REDIS_HOSTNAME             = azurerm_managed_redis.app.hostname
     BACKEND_API_KEY            = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault_secret.backend_api_key.versionless_id})"
+    STORAGE_ACCOUNT_NAME       = module.storage.storage_account_name
+    STORAGE_CONTAINER_NAME     = azurerm_storage_container.java_uploads.name
   }
 
   tags = local.tags

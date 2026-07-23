@@ -15,7 +15,6 @@ Terraform mirror of the [azure-infra-cli](https://github.com/hoaraualderic/azure
 | Storage Account | `st<owner>tf` | Business storage — `api-logs` container (private) and `api-config` container (public) |
 | App Service | `app-<owner>-tf` | Python application on the shared plan |
 | Function App | `fn-<owner>-tf` | Python Azure Function + dedicated storage |
-| Static Web App | `stapp-<owner>-tf` | Static site (Free tier) |
 | Container Instance | `aci-<owner>-tf` | nginx:1.27-alpine, publicly exposed |
 | VNet + subnets + NSG | `vnet-<owner>-tf` | Network with subnet-frontend and subnet-backend |
 | Log Analytics + Application Insights (x2) + Availability Tests + alerts | `law-<owner>-tf`, `appi-app/func-<owner>-tf` | Observability stack — see [observability.tf](terraform/observability.tf), corrigé for the `tp-observability` TP |
@@ -28,6 +27,7 @@ Terraform mirror of the [azure-infra-cli](https://github.com/hoaraualderic/azure
 | App Service Plan (Java) | `plan-java-<owner>-tf` | TP Java/Angular — S3, in the learner's own Resource Group (not shared with the Python App Service's plan above). Created in the same `terraform apply` as the Web App below; Terraform sequences plan-then-app automatically via the resource dependency, no separate step — see [app-service-java.tf](terraform/app-service-java.tf) |
 | Web App (Java) | `app-java-<owner>-tf` | TP Java/Angular backend, Java 21, on the plan above. Outbound VNet Integration on `subnet-backend` to reach Postgres/Redis/Key Vault; CORS locked to the Angular Static Web App's origin; expects a shared `X-Api-Key` header (`backend-api-key` secret) — see [app-service-java.tf](terraform/app-service-java.tf) |
 | Static Web App (Angular) | `stapp-angular-<owner>-tf` | TP Java/Angular frontend. Hard-pinned to `westeurope` — Static Web Apps only exist in 5 regions worldwide, independent of subscription — see [static-web-app-java.tf](terraform/static-web-app-java.tf) |
+| Storage container (Java) | `java-uploads-<owner>` | TP Java/Angular, on the **same** Storage Account as the Python TP's `api-logs`/`api-config` (module.storage) rather than a new dedicated account. Access is Azure AD/RBAC-only, scoped to just this container for the Java backend's identity — not network-restricted, since disabling public access account-wide would break the Python TP's public `api-config` container. See the design note in [storage-java.tf](terraform/storage-java.tf) |
 
 > The Resource Group and the (Python) App Service Plan are **pre-created by the trainer** — Terraform does not manage them. The Java TP's own App Service Plan, on the other hand, **is** Terraform-managed, in the learner's own Resource Group alongside everything else (see [app-service-java.tf](terraform/app-service-java.tf)).
 
