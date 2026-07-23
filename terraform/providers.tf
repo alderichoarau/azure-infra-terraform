@@ -3,14 +3,30 @@ terraform {
 
   required_providers {
     azurerm = {
-      source  = "hashicorp/azurerm"
-      version = "~> 4.0"
+      source = "hashicorp/azurerm"
+      # >= 4.60 requis par azurerm_managed_redis (database.tf/redis.tf) — le service
+      # historique Azure Cache for Redis n'accepte plus de nouvelles instances.
+      version = "~> 4.60"
     }
     # Génère la paire de clés SSH de la VM Prometheus (observability-prometheus.tf) —
     # évite un file("~/.ssh/id_rsa.pub") qui casserait en CI (pas de clé locale sur le runner).
     tls = {
       source  = "hashicorp/tls"
       version = "~> 4.0"
+    }
+    # Génère le mot de passe admin PostgreSQL (database.tf) — évite de le faire
+    # transiter en variable/tfvars.
+    random = {
+      source  = "hashicorp/random"
+      version = "~> 3.6"
+    }
+    # Laisse le temps aux role assignments RBAC du Key Vault de se propager avant
+    # d'écrire les secrets (keyvault.tf) — sans ça, l'apply échoue parfois en 403
+    # sur le premier azurerm_key_vault_secret, la propagation RBAC n'étant pas
+    # instantanée côté Azure AD.
+    time = {
+      source  = "hashicorp/time"
+      version = "~> 0.9"
     }
   }
 }

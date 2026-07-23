@@ -26,15 +26,50 @@ variable "shared_rg_name" {
 }
 
 variable "shared_plan_name" {
-  description = "Name of the shared App Service plan"
+  description = "Name of the shared App Service plan (Python App Service / Function App — observability TP)"
   type        = string
   default     = "plan-npr-prf2026"
+}
+
+variable "java_app_plan_sku" {
+  description = "SKU of the Java backend's App Service Plan (app-service-java.tf), created in the learner's own Resource Group. S3 confirmed working on the Simplon subscription during TP validation — Premium v2/v3 is blocked there by the org-wide \"NoPremiumApps\" policy."
+  type        = string
+  default     = "S3"
 }
 
 variable "tags" {
   description = "Additional tags to merge with default tags"
   type        = map(string)
   default     = {}
+}
+
+variable "environment" {
+  description = "Environment this deployment belongs to. Non-prod and prod are both hosted on the same Simplon subscription (see cahier des charges §4.4), identified by Resource Group + this tag rather than by separate subscriptions."
+  type        = string
+  default     = "nonprod"
+
+  validation {
+    condition     = contains(["nonprod", "prod"], var.environment)
+    error_message = "environment must be either \"nonprod\" or \"prod\"."
+  }
+}
+
+variable "postgres_sku_name" {
+  description = "SKU for the PostgreSQL Flexible Server. Burstable tier (B_*) recommended: General Purpose/Memory Optimized tiers consume vCPU quota families that were found to be zero on several student subscriptions during TP validation."
+  type        = string
+  default     = "B_Standard_B1ms"
+}
+
+variable "postgres_version" {
+  description = "PostgreSQL Flexible Server major version"
+  type        = string
+  default     = "16"
+}
+
+variable "redis_sku_name" {
+  description = "SKU for the Azure Managed Redis instance (replaces the retired Azure Cache for Redis)"
+  type        = string
+  default     = "Balanced_B0"
 }
 
 variable "prometheus_vm_size" {
