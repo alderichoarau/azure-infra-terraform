@@ -11,6 +11,28 @@
 # Python observability TP's app-service.tf) — kept separate from that plan.
 # ──────────────────────────────────────────────────────────────────────────────
 
+# subnet-backend (module.network, 10.0.2.0/24) can't be reused here: it comes
+# from the shared network registry module with no delegation, and it already
+# hosts the Redis/Key Vault Private Endpoints (redis.tf, keyvault.tf). Web App
+# regional VNet Integration requires its subnet delegated to
+# Microsoft.Web/serverFarms specifically — same "one delegation per subnet"
+# constraint already hit for Postgres (subnet-data, database.tf) — so this
+# gets its own subnet rather than touching the registry module.
+resource "azurerm_subnet" "java_app" {
+  name                 = "subnet-java-app"
+  resource_group_name  = data.azurerm_resource_group.rg.name
+  virtual_network_name = module.network.vnet_name
+  address_prefixes     = ["10.0.5.0/24"]
+
+  delegation {
+    name = "java-app-vnet-integration"
+    service_delegation {
+      name    = "Microsoft.Web/serverFarms"
+      actions = ["Microsoft.Network/virtualNetworks/subnets/action"]
+    }
+  }
+}
+
 resource "azurerm_service_plan" "java_app" {
   name                = "plan-java-${var.owner}-tf"
   resource_group_name = data.azurerm_resource_group.rg.name
@@ -45,7 +67,7 @@ resource "azurerm_linux_web_app" "java_app" {
   service_plan_id     = azurerm_service_plan.java_app.id
   https_only          = true
 
-  virtual_network_subnet_id = module.network.subnet_backend_id
+  virtual_network_subnet_id = azurerm_subnet.java_app.id
 
   identity {
     type = "SystemAssigned"
