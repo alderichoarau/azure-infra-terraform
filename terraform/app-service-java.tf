@@ -102,6 +102,14 @@ resource "azurerm_linux_web_app" "java_app" {
   # (e.g. a servlet filter rejecting anything without a matching
   # X-Api-Key header) — Terraform only provisions and hands over the value,
   # it cannot enforce the check itself.
+  # APP_CORS_ALLOWED_ORIGINS: the `cors` block above is App Service's own
+  # platform-level CORS (handles preflight before the request even reaches the
+  # Java process). But the Spring app also runs its own CORS config
+  # (WebConfig.java, bound to app.cors.allowed-origins, default
+  # "http://localhost:4200" for local dev) — without overriding it here, the
+  # request would pass App Service's CORS check and then get rejected by
+  # Spring's. Relaxed binding (app.cors.allowed-origins -> APP_CORS_ALLOWED_ORIGINS)
+  # needs no extra Spring profile.
   app_settings = {
     KEY_VAULT_URI              = azurerm_key_vault.app.vault_uri
     SPRING_DATASOURCE_URL      = "jdbc:postgresql://${azurerm_postgresql_flexible_server.app.fqdn}:5432/${azurerm_postgresql_flexible_server_database.app.name}?sslmode=require"
@@ -111,6 +119,7 @@ resource "azurerm_linux_web_app" "java_app" {
     BACKEND_API_KEY            = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault_secret.backend_api_key.versionless_id})"
     STORAGE_ACCOUNT_NAME       = module.storage.storage_account_name
     STORAGE_CONTAINER_NAME     = azurerm_storage_container.java_uploads.name
+    APP_CORS_ALLOWED_ORIGINS   = "https://${azurerm_static_web_app.angular_frontend.default_host_name}"
   }
 
   tags = local.tags
