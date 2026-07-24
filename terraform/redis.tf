@@ -31,6 +31,36 @@ resource "azurerm_managed_redis" "app" {
   tags = local.tags
 }
 
+
+# "privatelink.redis.azure.net" is Microsoft's fixed private-DNS-zone name for
+# Managed Redis / Redis Enterprise private-link targets (same mechanism as
+# database.tf's postgres zone, but that resource sets private_dns_zone_id
+# directly on the server -- Managed Redis has no such argument, so the zone
+# has to be wired up through the Private Endpoint's private_dns_zone_group
+# instead, same as Key Vault/Storage private endpoints elsewhere in Azure).
+#
+# Without this: the app's public FQDN (redis-<owner>-tf.<region>.redis.azure.net)
+# is a CNAME to <name>.privatelink.redis.azure.net; with public_network_access
+# = "Disabled" above and no matching zone linked to the VNet, that CNAME still
+# resolves to the *public* IP from inside the App Service's VNet Integration
+# subnet, and since public access is disabled, the connection just times out
+# (packets silently dropped, not refused) -- exactly the ~10s ConnectTimeoutException
+# hit during deployment. Linking this zone makes that same CNAME resolve to the
+# Private Endpoint's private IP instead, for any client inside this VNet.
+resource "azurerm_private_dns_zone" "redis" {
+  name                = "privatelink.redis.azure.net"
+  resource_group_name = data.azurerm_resource_group.rg.name
+  tags                = local.tags
+}
+
+resource "azurerm_private_dns_zone_virtual_network_link" "redis" {
+  name                  = "pdnslink-redis-${var.owner}-tf"
+  private_dns_zone_name = azurerm_private_dns_zone.redis.name
+  virtual_network_id    = module.network.vnet_id
+  resource_group_name   = data.azurerm_resource_group.rg.name
+  tags                  = local.tags
+}
+
 resource "azurerm_private_endpoint" "redis" {
   name                = "pe-redis-${var.owner}-tf"
   resource_group_name = data.azurerm_resource_group.rg.name
@@ -48,4 +78,15 @@ resource "azurerm_private_endpoint" "redis" {
     subresource_names              = ["redisEnterprise"]
     is_manual_connection           = false
   }
+
+  # Auto-creates/maintains the A record for this endpoint's private IP inside
+  # the zone above -- same idea as Postgres's private_dns_zone_id, just
+  # expressed through the Private Endpoint since Managed Redis doesn't have a
+  # direct private_dns_zone_id argument of its own.
+  private_dns_zone_group {
+    name                 = "pdnszg-redis-${var.owner}-tf"
+    private_dns_zone_ids = [azurerm_private_dns_zone.redis.id]
+  }
+
+  depends_on = [azurerm_private_dns_zone_virtual_network_link.redis]
 }
