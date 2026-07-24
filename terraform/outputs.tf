@@ -91,33 +91,37 @@ output "func_insights_connection_string" {
   sensitive   = true
 }
 
+# The 6 outputs below are all null when var.enable_prometheus_stack = false (the whole
+# observability-prometheus.tf stack is skipped, count = 0 on every resource there) —
+# try(..., null) instead of a direct [0] index, which would error on an empty list.
+
 output "monitor_workspace_id" {
-  description = "ID of the Azure Monitor Workspace (managed Prometheus) — use to open Prometheus Explorer in the portal"
-  value       = azurerm_monitor_workspace.amw.id
+  description = "ID of the Azure Monitor Workspace (managed Prometheus) — use to open Prometheus Explorer in the portal. null when var.enable_prometheus_stack = false"
+  value       = try(azurerm_monitor_workspace.amw[0].id, null)
 }
 
 output "grafana_endpoint" {
-  description = "URL of the Azure Managed Grafana instance"
-  value       = azurerm_dashboard_grafana.grafana.endpoint
+  description = "URL of the Azure Managed Grafana instance. null when var.enable_prometheus_stack = false"
+  value       = try(azurerm_dashboard_grafana.grafana[0].endpoint, null)
 }
 
 output "monitor_workspace_dce_id" {
-  description = "ID of the auto-created Data Collection Endpoint — used for manual `az monitor data-collection endpoint show --ids ...` troubleshooting on the Prometheus VM"
-  value       = azurerm_monitor_workspace.amw.default_data_collection_endpoint_id
+  description = "ID of the auto-created Data Collection Endpoint — used for manual `az monitor data-collection endpoint show --ids ...` troubleshooting on the Prometheus VM. null when var.enable_prometheus_stack = false"
+  value       = try(azurerm_monitor_workspace.amw[0].default_data_collection_endpoint_id, null)
 }
 
 output "monitor_workspace_dcr_id" {
-  description = "ID of the auto-created Data Collection Rule — used for manual `az monitor data-collection rule show --ids ...` troubleshooting on the Prometheus VM"
-  value       = azurerm_monitor_workspace.amw.default_data_collection_rule_id
+  description = "ID of the auto-created Data Collection Rule — used for manual `az monitor data-collection rule show --ids ...` troubleshooting on the Prometheus VM. null when var.enable_prometheus_stack = false"
+  value       = try(azurerm_monitor_workspace.amw[0].default_data_collection_rule_id, null)
 }
 
 output "prometheus_vm_public_ip" {
-  description = "Public IP of the Prometheus VM — for SSH troubleshooting only, the remote_write pipeline is self-configuring via cloud-init"
-  value       = azurerm_public_ip.prometheus_vm.ip_address
+  description = "Public IP of the Prometheus VM — for SSH troubleshooting only, the remote_write pipeline is self-configuring via cloud-init. null when var.enable_prometheus_stack = false"
+  value       = try(azurerm_public_ip.prometheus_vm[0].ip_address, null)
 }
 
 output "prometheus_vm_ssh_private_key" {
-  description = "Terraform-generated SSH private key for the Prometheus VM (admin_username = azureuser). Save it locally with `terraform output -raw prometheus_vm_ssh_private_key > id_rsa && chmod 600 id_rsa` before connecting."
-  value       = tls_private_key.prometheus_vm.private_key_openssh
+  description = "Terraform-generated SSH private key for the Prometheus VM (admin_username = azureuser). Save it locally with `terraform output -raw prometheus_vm_ssh_private_key > id_rsa && chmod 600 id_rsa` before connecting. null when var.enable_prometheus_stack = false"
+  value       = try(tls_private_key.prometheus_vm[0].private_key_openssh, null)
   sensitive   = true
 }

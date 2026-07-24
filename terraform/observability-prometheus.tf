@@ -25,12 +25,21 @@
 # autorisé par module — Terraform refuse d'en avoir un second ici, même pour un
 # provider différent).
 
+# Toutes les ressources de ce fichier partagent le même count = var.enable_prometheus_stack
+# ? 1 : 0 (variables.tf) : soit tout le stack existe, soit rien n'existe — jamais un état
+# intermédiaire. C'est ce qui permet de les référencer entre elles avec un simple [0] sans
+# se soucier de cas partiels. Objectif : garder le code en l'état (pédagogie, futures
+# validations du TP observabilité) sans que ce stack (VM + Grafana + Prometheus managé,
+# les ressources les plus chères du repo tournant 24/7) soit recréé à chaque cycle
+# destroy/apply pendant qu'on itère sur la piste Java/Angular.
+
 # ── Azure Monitor Workspace (Prometheus managé) ───────────────────────────────
 # Crée automatiquement, en arrière-plan, un Data Collection Endpoint et un Data
 # Collection Rule dédiés (exposés ci-dessous via default_data_collection_*_id) —
 # on ne les crée pas nous-mêmes.
 
 resource "azurerm_monitor_workspace" "amw" {
+  count               = var.enable_prometheus_stack ? 1 : 0
   name                = "amw-${var.owner}-tf"
   resource_group_name = data.azurerm_resource_group.rg.name
   location            = var.location
@@ -40,6 +49,7 @@ resource "azurerm_monitor_workspace" "amw" {
 # ── Grafana managé ────────────────────────────────────────────────────────────
 
 resource "azurerm_dashboard_grafana" "grafana" {
+  count = var.enable_prometheus_stack ? 1 : 0
   # Azure Managed Grafana impose un nom de 2 à 23 caractères (lettres/chiffres/tirets) —
   # bien plus court que les autres ressources de ce fichier. "grafana-${owner}-tf" dépasse
   # cette limite dès que owner fait plus de ~11 caractères ; on retire les tirets et le
@@ -59,9 +69,10 @@ resource "azurerm_dashboard_grafana" "grafana" {
 # Sans ce rôle, la source de données Azure Monitor dans Grafana ne remonte aucune donnée
 # (ni les logs App Insights, ni les métriques Prometheus managé).
 resource "azurerm_role_assignment" "grafana_monitoring_reader" {
+  count                = var.enable_prometheus_stack ? 1 : 0
   scope                = data.azurerm_resource_group.rg.id
   role_definition_name = "Monitoring Reader"
-  principal_id         = azurerm_dashboard_grafana.grafana.identity[0].principal_id
+  principal_id         = azurerm_dashboard_grafana.grafana[0].identity[0].principal_id
 }
 
 # ── Réseau dédié à la VM Prometheus ────────────────────────────────────────────
@@ -82,6 +93,7 @@ resource "azurerm_role_assignment" "grafana_monitoring_reader" {
 # module network).
 
 resource "azurerm_subnet" "prometheus" {
+  count                = var.enable_prometheus_stack ? 1 : 0
   name                 = "subnet-prometheus"
   resource_group_name  = data.azurerm_resource_group.rg.name
   virtual_network_name = module.network.vnet_name
@@ -89,6 +101,7 @@ resource "azurerm_subnet" "prometheus" {
 }
 
 resource "azurerm_network_security_group" "prometheus_vm" {
+  count = var.enable_prometheus_stack ? 1 : 0
   # checkov:skip=CKV_AZURE_10: SSH ouvert pour les besoins du TP (dépannage) — à restreindre
   # à l'IP de la salle en usage réel, cf. var.trainer_ip_cidr
   name                = "nsg-prometheus-${var.owner}-tf"
@@ -117,11 +130,13 @@ resource "azurerm_network_security_group" "prometheus_vm" {
 }
 
 resource "azurerm_subnet_network_security_group_association" "prometheus" {
-  subnet_id                 = azurerm_subnet.prometheus.id
-  network_security_group_id = azurerm_network_security_group.prometheus_vm.id
+  count                     = var.enable_prometheus_stack ? 1 : 0
+  subnet_id                 = azurerm_subnet.prometheus[0].id
+  network_security_group_id = azurerm_network_security_group.prometheus_vm[0].id
 }
 
 resource "azurerm_public_ip" "prometheus_vm" {
+  count = var.enable_prometheus_stack ? 1 : 0
   # checkov:skip=CKV_AZURE_59: IP publique nécessaire pour le scrape sortant + SSH de dépannage sur ce TP
   name                = "pip-prometheus-${var.owner}-tf"
   resource_group_name = data.azurerm_resource_group.rg.name
@@ -132,6 +147,7 @@ resource "azurerm_public_ip" "prometheus_vm" {
 }
 
 resource "azurerm_network_interface" "prometheus_vm" {
+  count = var.enable_prometheus_stack ? 1 : 0
   # checkov:skip=CKV_AZURE_119: IP publique nécessaire (scrape sortant vers l'App Service +
   # SSH de dépannage) sur ce TP éphémère ; à revoir (Bastion / NAT Gateway) pour un usage réel
   name                = "nic-prometheus-${var.owner}-tf"
@@ -141,15 +157,16 @@ resource "azurerm_network_interface" "prometheus_vm" {
 
   ip_configuration {
     name                          = "internal"
-    subnet_id                     = azurerm_subnet.prometheus.id
+    subnet_id                     = azurerm_subnet.prometheus[0].id
     private_ip_address_allocation = "Dynamic"
-    public_ip_address_id          = azurerm_public_ip.prometheus_vm.id
+    public_ip_address_id          = azurerm_public_ip.prometheus_vm[0].id
   }
 }
 
 resource "azurerm_network_interface_security_group_association" "prometheus_vm" {
-  network_interface_id      = azurerm_network_interface.prometheus_vm.id
-  network_security_group_id = azurerm_network_security_group.prometheus_vm.id
+  count                     = var.enable_prometheus_stack ? 1 : 0
+  network_interface_id      = azurerm_network_interface.prometheus_vm[0].id
+  network_security_group_id = azurerm_network_security_group.prometheus_vm[0].id
 }
 
 # ── Clé SSH générée par Terraform ─────────────────────────────────────────────
@@ -159,6 +176,7 @@ resource "azurerm_network_interface_security_group_association" "prometheus_vm" 
 # si un dépannage manuel est nécessaire.
 
 resource "tls_private_key" "prometheus_vm" {
+  count     = var.enable_prometheus_stack ? 1 : 0
   algorithm = "RSA"
   rsa_bits  = 4096
 }
@@ -171,6 +189,7 @@ resource "tls_private_key" "prometheus_vm" {
 # manuelle az cli côté apprenant.
 
 resource "azurerm_linux_virtual_machine" "prometheus" {
+  count = var.enable_prometheus_stack ? 1 : 0
   # checkov:skip=CKV_AZURE_149: pas de Trusted Launch nécessaire pour cette VM de TP éphémère
   # checkov:skip=CKV_AZURE_50: pas d'extension antimalware nécessaire pour cette VM de TP éphémère
   name                  = "vm-prometheus-${var.owner}-tf"
@@ -178,7 +197,7 @@ resource "azurerm_linux_virtual_machine" "prometheus" {
   location              = var.location
   size                  = var.prometheus_vm_size
   admin_username        = "azureuser"
-  network_interface_ids = [azurerm_network_interface.prometheus_vm.id]
+  network_interface_ids = [azurerm_network_interface.prometheus_vm[0].id]
   tags                  = local.tags
 
   identity {
@@ -187,7 +206,7 @@ resource "azurerm_linux_virtual_machine" "prometheus" {
 
   admin_ssh_key {
     username   = "azureuser"
-    public_key = tls_private_key.prometheus_vm.public_key_openssh
+    public_key = tls_private_key.prometheus_vm[0].public_key_openssh
   }
 
   os_disk {
@@ -203,16 +222,17 @@ resource "azurerm_linux_virtual_machine" "prometheus" {
   }
 
   custom_data = base64encode(templatefile("${path.module}/templates/prometheus-cloud-init.sh.tpl", {
-    dce_id       = azurerm_monitor_workspace.amw.default_data_collection_endpoint_id
-    dcr_id       = azurerm_monitor_workspace.amw.default_data_collection_rule_id
+    dce_id       = azurerm_monitor_workspace.amw[0].default_data_collection_endpoint_id
+    dcr_id       = azurerm_monitor_workspace.amw[0].default_data_collection_rule_id
     app_hostname = module.app_service_python.default_hostname # App Service Python déployé via le module registry (app-service.tf), pas une resource locale
   }))
 }
 
 resource "azurerm_role_assignment" "prometheus_publisher" {
-  scope                = azurerm_monitor_workspace.amw.default_data_collection_rule_id
+  count                = var.enable_prometheus_stack ? 1 : 0
+  scope                = azurerm_monitor_workspace.amw[0].default_data_collection_rule_id
   role_definition_name = "Monitoring Metrics Publisher"
-  principal_id         = azurerm_linux_virtual_machine.prometheus.identity[0].principal_id
+  principal_id         = azurerm_linux_virtual_machine.prometheus[0].identity[0].principal_id
 }
 
 # Monitoring Metrics Publisher (ci-dessus) est un rôle data-plane : il autorise le
@@ -226,26 +246,29 @@ resource "azurerm_role_assignment" "prometheus_publisher" {
 # non modélisé comme resource Terraform ici) pour rester au plus près du besoin réel.
 
 resource "azurerm_role_assignment" "prometheus_dce_reader" {
-  scope                = azurerm_monitor_workspace.amw.default_data_collection_endpoint_id
+  count                = var.enable_prometheus_stack ? 1 : 0
+  scope                = azurerm_monitor_workspace.amw[0].default_data_collection_endpoint_id
   role_definition_name = "Monitoring Reader"
-  principal_id         = azurerm_linux_virtual_machine.prometheus.identity[0].principal_id
+  principal_id         = azurerm_linux_virtual_machine.prometheus[0].identity[0].principal_id
 }
 
 resource "azurerm_role_assignment" "prometheus_dcr_reader" {
-  scope                = azurerm_monitor_workspace.amw.default_data_collection_rule_id
+  count                = var.enable_prometheus_stack ? 1 : 0
+  scope                = azurerm_monitor_workspace.amw[0].default_data_collection_rule_id
   role_definition_name = "Monitoring Reader"
-  principal_id         = azurerm_linux_virtual_machine.prometheus.identity[0].principal_id
+  principal_id         = azurerm_linux_virtual_machine.prometheus[0].identity[0].principal_id
 }
 
 # ── Alerte sur la métrique custom exposée par l'app (log_erreurs_total) ───────
 # Réutilise l'Action Group "team" défini dans observability.tf — pas de doublon.
 
 resource "azurerm_monitor_alert_prometheus_rule_group" "alerte_erreurs" {
+  count               = var.enable_prometheus_stack ? 1 : 0
   name                = "alerte-erreurs-${var.owner}-tf"
   resource_group_name = data.azurerm_resource_group.rg.name
   location            = var.location
-  cluster_name        = azurerm_monitor_workspace.amw.name
-  scopes              = [azurerm_monitor_workspace.amw.id]
+  cluster_name        = azurerm_monitor_workspace.amw[0].name
+  scopes              = [azurerm_monitor_workspace.amw[0].id]
   tags                = local.tags
 
   rule {

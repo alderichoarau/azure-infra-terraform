@@ -41,6 +41,21 @@ Static Web App's official "linked backend" proxy (the mechanism that would let t
 Options considered: Azure Front Door with Private Link to the backend (real network isolation, but adds a component, cost, and an unverified risk of hitting another Simplon governance policy); loosening the requirement to an application-layer control (chosen); or swapping the frontend for a Web App that can proxy through its own VNet Integration (works, but no longer a Static Web App as scoped).
 </details>
 
+## TP Java/Angular — known gotchas
+
+- **First `apply` on a blank Resource Group fails on `azurerm_linux_web_app.java_app` with
+  `Error: Provider produced inconsistent final plan ... site_config[0].cors: block count changed
+  from 0 to 1`.** This is a known azurerm provider limitation, not a config mistake: the Web App's
+  `cors.allowed_origins` references `azurerm_static_web_app.angular_frontend.default_host_name`, a
+  hostname Azure generates randomly and can't be known until that Static Web App is actually
+  created. On a first apply, both resources are created in the same run, so the provider can't
+  predict at plan time whether the `cors` block will end up populated — it guesses wrong and the
+  consistency check between plan and apply fails. By the time the error surfaces, the Static Web
+  App (upstream in the dependency chain) has already been created successfully and its hostname is
+  in state. **Fix: just run `terraform apply` again** — the hostname is no longer an unknown value
+  the second time, so the `cors` block plans correctly. Applies against an already-existing state
+  never hit this (the ambiguity only exists on first creation).
+
 ## Prerequisites
 
 - [Terraform](https://developer.hashicorp.com/terraform/install) >= 1.9

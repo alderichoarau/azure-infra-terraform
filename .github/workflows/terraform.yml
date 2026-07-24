@@ -17,6 +17,11 @@ on:
         required: false
         type: string
         default: "Standard_D2s_v3"
+      enable_prometheus_stack:
+        description: "Provision the Prometheus/Grafana stack (VM, Azure Monitor Workspace, Managed Grafana, alert rule group — observability-prometheus.tf)? Off by default while iterating on the TP Java/Angular track, to avoid recreating it on every apply/destroy cycle."
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   id-token: write  # OIDC token for Azure login
@@ -82,6 +87,7 @@ jobs:
             -var="alert_email=${{ secrets.AZURE_ALERT_EMAIL }}" \
             -var="trainer_ip_cidr=${{ secrets.TRAINER_IP_CIDR }}" \
             -var="prometheus_vm_size=${{ inputs.prometheus_vm_size }}" \
+            -var="enable_prometheus_stack=${{ inputs.enable_prometheus_stack }}" \
             -out=tfplan \
             -no-color \
             | tee plan_output.txt
@@ -97,6 +103,7 @@ jobs:
             -var="alert_email=${{ secrets.AZURE_ALERT_EMAIL }}" \
             -var="trainer_ip_cidr=${{ secrets.TRAINER_IP_CIDR }}" \
             -var="prometheus_vm_size=${{ inputs.prometheus_vm_size }}" \
+            -var="enable_prometheus_stack=${{ inputs.enable_prometheus_stack }}" \
             -auto-approve \
             -no-color \
             | tee apply_output.txt
@@ -112,6 +119,7 @@ jobs:
             -var="alert_email=${{ secrets.AZURE_ALERT_EMAIL }}" \
             -var="trainer_ip_cidr=${{ secrets.TRAINER_IP_CIDR }}" \
             -var="prometheus_vm_size=${{ inputs.prometheus_vm_size }}" \
+            -var="enable_prometheus_stack=${{ inputs.enable_prometheus_stack }}" \
             -auto-approve \
             -no-color \
             | tee destroy_output.txt

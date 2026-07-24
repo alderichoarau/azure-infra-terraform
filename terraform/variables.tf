@@ -72,6 +72,12 @@ variable "redis_sku_name" {
   default     = "Balanced_B0"
 }
 
+variable "enable_prometheus_stack" {
+  description = "Toggle for the whole Prometheus/Grafana observability stack (observability-prometheus.tf: VM, Azure Monitor Workspace, Managed Grafana, the alert rule group). Default false: temporarily off while iterating on the TP Java/Angular track, so this stack isn't destroyed and recreated on every apply/destroy cycle — the code stays in the repo, just not provisioned. Set back to true (e.g. -var=\"enable_prometheus_stack=true\") once ready to validate the Python observability TP again."
+  type        = bool
+  default     = false
+}
+
 variable "prometheus_vm_size" {
   description = "VM size for the Prometheus VM. Defaults to Standard_D2s_v3 (broadly available general-purpose size) rather than a B-series burstable size: on this training subscription, Standard_B1s hit a capacity restriction and every Standard_B*_v2 size is flagged NotAvailableForSubscription in francecentral (checked with `az vm list-skus --location francecentral --size Standard_B --resource-type virtualMachines --output table`) — a subscription-level block, not per-learner, so it would likely hit everyone the same way."
   type        = string
