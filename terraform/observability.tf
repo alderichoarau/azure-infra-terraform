@@ -32,7 +32,7 @@ resource "azurerm_application_insights" "func" {
 
 resource "azurerm_monitor_diagnostic_setting" "app_service" {
   name                       = "diag-app-${var.owner}"
-  target_resource_id         = module.app_service.id
+  target_resource_id         = module.app_service_python.id
   log_analytics_workspace_id = azurerm_log_analytics_workspace.law.id
 
   enabled_metric {
@@ -52,7 +52,7 @@ resource "azurerm_monitor_diagnostic_setting" "function_app" {
 
 resource "azurerm_monitor_diagnostic_setting" "storage_blob" {
   name                       = "diag-storage-blob-${var.owner}"
-  target_resource_id         = "${module.storage.storage_account_id}/blobServices/default"
+  target_resource_id         = "${module.storage_shared.storage_account_id}/blobServices/default"
   log_analytics_workspace_id = azurerm_log_analytics_workspace.law.id
 
   enabled_metric {
@@ -73,7 +73,7 @@ resource "azurerm_application_insights_standard_web_test" "app_health" {
   tags                    = local.tags
 
   request {
-    url = "https://${module.app_service.default_hostname}/health"
+    url = "https://${module.app_service_python.default_hostname}/health"
   }
 
   validation_rules {
@@ -165,7 +165,7 @@ resource "azurerm_monitor_metric_alert" "func_availability" {
 resource "azurerm_monitor_metric_alert" "http5xx" {
   name                = "alert-http5xx-${var.owner}"
   resource_group_name = data.azurerm_resource_group.rg.name
-  scopes              = [module.app_service.id]
+  scopes              = [module.app_service_python.id]
   severity            = 1 # Error — not Critical, the app is still reachable
   frequency           = "PT1M"
   window_size         = "PT5M"
@@ -188,7 +188,7 @@ resource "azurerm_monitor_metric_alert" "http5xx" {
 resource "azurerm_monitor_metric_alert" "app_response_time" {
   name                = "alert-response-time-${var.owner}"
   resource_group_name = data.azurerm_resource_group.rg.name
-  scopes              = [module.app_service.id]
+  scopes              = [module.app_service_python.id]
   severity            = 2 # Warning — degraded, not yet an outage
   frequency           = "PT1M"
   window_size         = "PT5M"

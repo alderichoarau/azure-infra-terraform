@@ -1,21 +1,21 @@
 output "storage_account_name" {
   description = "Name of the business Storage Account"
-  value       = module.storage.storage_account_name
+  value       = module.storage_shared.storage_account_name
 }
 
 output "blob_container_private_url" {
   description = "URL of the private api-logs container"
-  value       = module.storage.private_container_url
+  value       = module.storage_shared.private_container_url
 }
 
 output "blob_container_public_url" {
   description = "Public URL of the api-config container"
-  value       = module.storage.public_container_url
+  value       = module.storage_shared.public_container_url
 }
 
 output "app_service_url" {
-  description = "URL of the App Service"
-  value       = "https://${module.app_service.default_hostname}"
+  description = "URL of the Python App Service"
+  value       = "https://${module.app_service_python.default_hostname}"
 }
 
 output "java_app_service_url" {
@@ -39,8 +39,8 @@ output "key_vault_uri" {
 }
 
 output "java_uploads_container_url" {
-  description = "URL of the Java TP's container on the shared Storage Account (module.storage) — access is Azure AD/RBAC-only (see storage-java.tf), not network-restricted"
-  value       = "${module.storage.storage_account_name}/${azurerm_storage_container.java_uploads.name}"
+  description = "URL of the Java TP's container on the shared Storage Account (module.storage_shared) — access is Azure AD/RBAC-only (see storage-java.tf), not network-restricted"
+  value       = "${module.storage_shared.storage_account_name}/${azurerm_storage_container.java_uploads.name}"
 }
 
 output "angular_frontend_url" {

@@ -117,10 +117,14 @@ resource "azurerm_linux_web_app" "java_app" {
     SPRING_DATASOURCE_PASSWORD = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault_secret.postgres_password.versionless_id})"
     REDIS_HOSTNAME             = azurerm_managed_redis.app.hostname
     BACKEND_API_KEY            = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault_secret.backend_api_key.versionless_id})"
-    STORAGE_ACCOUNT_NAME       = module.storage.storage_account_name
+    STORAGE_ACCOUNT_NAME       = module.storage_shared.storage_account_name
     STORAGE_CONTAINER_NAME     = azurerm_storage_container.java_uploads.name
     APP_CORS_ALLOWED_ORIGINS   = "https://${azurerm_static_web_app.angular_frontend.default_host_name}"
   }
 
-  tags = local.tags
+  # component tag: lets the backend app repo's CI find this exact Web App by
+  # tag (owner + environment + component) rather than hardcoding its name —
+  # matters here specifically because this Resource Group also holds the
+  # Python TP's App Service (same owner/environment tags, different resource).
+  tags = merge(local.tags, { component = "quiz-backend" })
 }

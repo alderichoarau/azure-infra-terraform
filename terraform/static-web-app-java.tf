@@ -15,5 +15,9 @@ resource "azurerm_static_web_app" "angular_frontend" {
   location            = "westeurope"
   sku_tier            = "Free"
   sku_size            = "Free"
-  tags                = local.tags
+
+  # component tag: lets the frontend/backend CI pipelines find this resource by
+  # tag (owner + environment + component) instead of hardcoding its name —
+  # names embed var.owner, which the app repos' CI shouldn't need to know.
+  tags = merge(local.tags, { component = "quiz-frontend" })
 }

@@ -4,12 +4,12 @@
 
 moved {
   from = module.storage.azurerm_storage_container.api_logs
-  to   = module.storage.azurerm_storage_container.private
+  to   = module.storage_shared.azurerm_storage_container.private
 }
 
 moved {
   from = module.storage.azurerm_storage_container.api_config
-  to   = module.storage.azurerm_storage_container.public
+  to   = module.storage_shared.azurerm_storage_container.public
 }
 
 moved {

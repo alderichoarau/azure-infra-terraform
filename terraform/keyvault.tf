@@ -43,7 +43,10 @@ resource "azurerm_key_vault" "app" {
   purge_protection_enabled      = false
   public_network_access_enabled = true
 
-  tags = local.tags
+  # Same component tag as the Java Web App (app-service-java.tf) — the
+  # frontend's CI also needs to find this vault by tag, to read
+  # backend-api-key without the Web App's/Key Vault's name being hardcoded.
+  tags = merge(local.tags, { component = "quiz-backend" })
 }
 
 resource "azurerm_private_endpoint" "keyvault" {

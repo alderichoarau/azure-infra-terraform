@@ -205,7 +205,7 @@ resource "azurerm_linux_virtual_machine" "prometheus" {
   custom_data = base64encode(templatefile("${path.module}/templates/prometheus-cloud-init.sh.tpl", {
     dce_id       = azurerm_monitor_workspace.amw.default_data_collection_endpoint_id
     dcr_id       = azurerm_monitor_workspace.amw.default_data_collection_rule_id
-    app_hostname = module.app_service.default_hostname # App Service déployé via le module registry (app-service.tf), pas une resource locale
+    app_hostname = module.app_service_python.default_hostname # App Service Python déployé via le module registry (app-service.tf), pas une resource locale
   }))
 }
 

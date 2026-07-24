@@ -1,8 +1,8 @@
 # ──────────────────────────────────────────────────────────────────────────────
 # storage-java.tf — TP Java/Angular Storage requirement, on the EXISTING
-# storage account (module.storage, storage.tf) rather than a new dedicated one.
+# storage account (module.storage_shared, storage.tf) rather than a new dedicated one.
 #
-# Trade-off, deliberate: module.storage's Storage Account has no network
+# Trade-off, deliberate: module.storage_shared's Storage Account has no network
 # restriction (no Private Endpoint, public network access left at its default)
 # because it already serves the Python observability TP's "api-config"
 # container with intentional anonymous blob access — disabling public network
@@ -20,14 +20,14 @@
 
 resource "azurerm_storage_container" "java_uploads" {
   name                  = "java-uploads-${var.owner}"
-  storage_account_id    = module.storage.storage_account_id
+  storage_account_id    = module.storage_shared.storage_account_id
   container_access_type = "private"
 }
 
 resource "azurerm_role_assignment" "backend_storage_blob_contributor" {
   # Scoped to this one container, not the whole account — the Java backend's
   # identity has no access to api-logs/api-config, only to its own container.
-  scope                = "${module.storage.storage_account_id}/blobServices/default/containers/${azurerm_storage_container.java_uploads.name}"
+  scope                = "${module.storage_shared.storage_account_id}/blobServices/default/containers/${azurerm_storage_container.java_uploads.name}"
   role_definition_name = "Storage Blob Data Contributor"
   principal_id         = azurerm_linux_web_app.java_app.identity[0].principal_id
 }

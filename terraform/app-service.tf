@@ -1,4 +1,4 @@
-module "app_service" {
+module "app_service_python" {
   # checkov:skip=CKV_TF_1: registry module (app.terraform.io), pinned by semver `version` — commit-hash pinning applies to git sources only
   source  = "app.terraform.io/alderic-hoarau/app-service/azurerm"
   version = "~> 1.1.0"
