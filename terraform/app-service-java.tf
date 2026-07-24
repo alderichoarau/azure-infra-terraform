@@ -89,6 +89,16 @@ resource "azurerm_linux_web_app" "java_app" {
       allowed_origins     = ["https://${azurerm_static_web_app.angular_frontend.default_host_name}"]
       support_credentials = false
     }
+
+    # spring-boot-starter-actuator (pom.xml) auto-exposes /actuator/health,
+    # unauthenticated by default and outside the ApiKeyFilter's /api/** scope
+    # (ApiKeyFilter.java) — App Service pings this path directly, not through
+    # CORS. With a single instance (java_app_plan_sku, no autoscale configured
+    # here) this doesn't yet drive load-balancer routing, but it does make App
+    # Service auto-restart the instance if health checks fail for the eviction
+    # window below, instead of silently serving from a hung process.
+    health_check_path                 = "/actuator/health"
+    health_check_eviction_time_in_min = 2
   }
 
   # SPRING_DATASOURCE_USERNAME/PASSWORD and BACKEND_API_KEY use the
