@@ -13,6 +13,11 @@ output "blob_container_public_url" {
   value       = module.storage_shared.public_container_url
 }
 
+output "ci_app_deploy_client_id" {
+  description = "Client ID of the User-Assigned Managed Identity used by azure-quiz-backend/azure-quiz-frontend's deploy.yml workflows (ci-app-deploy-identity.tf). Put this value into both repos' AZURE_CLIENT_ID GitHub secret."
+  value       = azurerm_user_assigned_identity.ci_app_deploy.client_id
+}
+
 output "app_service_url" {
   description = "URL of the Python App Service"
   value       = "https://${module.app_service_python.default_hostname}"
