@@ -111,11 +111,28 @@ resource "azurerm_linux_web_app" "java_app" {
   # Spring's. Relaxed binding (app.cors.allowed-origins -> APP_CORS_ALLOWED_ORIGINS)
   # needs no extra Spring profile.
   app_settings = {
+    # Local dev's application.yml keeps a "default" profile document with
+    # hardcoded localhost values (datasource, Azurite connection string for
+    # Blob Storage). Spring's implicit "default" profile activates whenever
+    # no profile is explicitly set — without this, that profile would also
+    # activate here in prod. Most of its properties are safely overridden by
+    # same-named env vars below regardless (env vars outrank profile-bundled
+    # properties in Spring's precedence order), but the Blob Storage
+    # connection-string has no such override in prod (there's no
+    # STORAGE_CONNECTION_STRING app setting, on purpose — prod authenticates
+    # via account-name + this Web App's managed identity, not a connection
+    # string) — so without deactivating "default" outright, prod would try to
+    # reach a local Azurite that doesn't exist. Explicit > implicit either way.
+    SPRING_PROFILES_ACTIVE = "prod"
+
     KEY_VAULT_URI              = azurerm_key_vault.app.vault_uri
     SPRING_DATASOURCE_URL      = "jdbc:postgresql://${azurerm_postgresql_flexible_server.app.fqdn}:5432/${azurerm_postgresql_flexible_server_database.app.name}?sslmode=require"
     SPRING_DATASOURCE_USERNAME = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault_secret.postgres_username.versionless_id})"
     SPRING_DATASOURCE_PASSWORD = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault_secret.postgres_password.versionless_id})"
     REDIS_HOSTNAME             = azurerm_managed_redis.app.hostname
+    REDIS_PORT                 = azurerm_managed_redis.app.default_database[0].port
+    REDIS_PASSWORD             = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault_secret.redis_access_key.versionless_id})"
+    REDIS_SSL_ENABLED          = "true" # Managed Redis default_database.client_protocol defaults to "Encrypted" (TLS) — see redis.tf
     BACKEND_API_KEY            = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault_secret.backend_api_key.versionless_id})"
     STORAGE_ACCOUNT_NAME       = module.storage_shared.storage_account_name
     STORAGE_CONTAINER_NAME     = azurerm_storage_container.java_uploads.name

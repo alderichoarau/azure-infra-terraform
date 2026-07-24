@@ -134,6 +134,15 @@ resource "azurerm_key_vault_secret" "postgres_connection_string" {
   depends_on   = [time_sleep.wait_for_deployer_rbac]
 }
 
+# Only exported because default_database.access_keys_authentication_enabled =
+# true (redis.tf) — otherwise this attribute is simply absent.
+resource "azurerm_key_vault_secret" "redis_access_key" {
+  name         = "redis-access-key"
+  value        = azurerm_managed_redis.app.default_database[0].primary_access_key
+  key_vault_id = azurerm_key_vault.app.id
+  depends_on   = [time_sleep.wait_for_deployer_rbac]
+}
+
 # ──────────────────────────────────────────────────────────────────────────────
 # Backend isolation, option 2 (SWA linked-backend requires a *public* backend —
 # see app-service-java.tf for why): CORS locked to the Static Web App's exact

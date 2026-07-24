@@ -19,7 +19,14 @@ resource "azurerm_managed_redis" "app" {
 
   public_network_access = "Disabled"
 
-  default_database {}
+  default_database {
+    # Off by default on this resource — without it, primary_access_key isn't
+    # even exported, so the backend would have no credential to authenticate
+    # with (client_protocol defaults to "Encrypted"/TLS, so a key is required
+    # either way; Azure AD token auth would be the alternative but adds
+    # complexity not worth it for this TP's single simple cache use case).
+    access_keys_authentication_enabled = true
+  }
 
   tags = local.tags
 }
