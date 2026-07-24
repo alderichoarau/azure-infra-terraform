@@ -86,6 +86,21 @@ resource "azurerm_role_assignment" "backend_kv_secrets_user" {
   principal_id         = azurerm_linux_web_app.java_app.identity[0].principal_id
 }
 
+# The frontend CI (azure-quiz-frontend/deploy.yml) reads backend-api-key via
+# `az keyvault secret show` to bake it into the Angular build. Its identity
+# (ci-app-deploy-identity.tf) already has Contributor on the whole Resource
+# Group, but that's not enough on its own: Contributor is control-plane only
+# (create/delete/configure resources) — it grants zero DataActions on any
+# service, so it can't read a secret's *value* from an RBAC-authorized vault
+# any more than Contributor alone lets you read blob contents on the shared
+# Storage Account (see module.storage_shared's own access model). Needs this
+# explicit data-plane role on top.
+resource "azurerm_role_assignment" "ci_app_deploy_kv_secrets_user" {
+  scope                = azurerm_key_vault.app.id
+  role_definition_name = "Key Vault Secrets User"
+  principal_id         = azurerm_user_assigned_identity.ci_app_deploy.principal_id
+}
+
 resource "time_sleep" "wait_for_deployer_rbac" {
   depends_on      = [azurerm_role_assignment.deployer_kv_secrets_officer]
   create_duration = "30s"
