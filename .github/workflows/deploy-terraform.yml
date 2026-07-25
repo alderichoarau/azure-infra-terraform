@@ -1,13 +1,24 @@
 # ─────────────────────────────────────────────────────────────────────────────
-# The single workflow for every Terraform directory in this repo — takes a
-# space-separated list of directories and one action (plan/apply/destroy),
-# and runs that action on each directory in turn, in the order given.
-# Replaces what used to be one workflow per directory (terraform-core.yml,
-# terraform-python.yml, terraform-managed-services.yml, terraform-aks-app.yml,
-# terraform-shared-aks.yml, terraform-shared-plan.yml — kept on disk as
-# *.yml.superseded, inert since GitHub Actions only picks up *.yml/*.yaml
-# directly, purely for reference) — one file to maintain instead of six
-# near-identical copies.
+# The single workflow for every Terraform directory in this repo — pick a
+# directory (or a pre-curated ordered combo) from a dropdown, pick one action
+# (plan/apply/destroy), and it runs that action on each directory in the
+# combo, in order. Replaces what used to be one workflow per directory
+# (terraform-core.yml, terraform-python.yml, terraform-managed-services.yml,
+# terraform-aks-app.yml, terraform-shared-aks.yml, terraform-shared-plan.yml —
+# kept on disk as *.yml.superseded, inert since GitHub Actions only picks up
+# *.yml/*.yaml directly, purely for reference) — one file to maintain instead
+# of six near-identical copies.
+#
+# `directories` is a `choice` input, not free-text `string`: GitHub Actions'
+# `choice` type is single-select only, it has no native multi-select/checkbox
+# UI — so instead of a free-text field where a typo silently produces an
+# empty or wrong run, the dropdown offers every individual directory PLUS the
+# handful of ordered multi-directory combos that actually make sense given
+# the dependency order (terraform-core first, see the root README's directory
+# table). Under the hood each option is still just a space-separated string,
+# so the bash loop below doesn't know or care whether it came from a single-
+# or multi-directory choice. Add a new combo to the `options` list below if
+# you find yourself needing one that isn't there.
 #
 # Per-directory variables are passed as TF_VAR_* environment variables, not
 # `-var` CLI flags: Terraform silently ignores a TF_VAR_x that doesn't match
@@ -21,11 +32,7 @@
 # would race terraform-python/terraform-managed-services/terraform-aks-app
 # against terraform-core before its state exists. A plain bash loop in one
 # job keeps the ordering the caller specified, at the cost of running
-# directories one at a time instead of in parallel. Order is the caller's
-# responsibility — not validated here beyond checking every named directory
-# exists and is one this workflow is allowed to touch — but the common case
-# (terraform-core before anything that reads its remote state) is documented
-# in the root README's directory table.
+# directories one at a time instead of in parallel.
 # ─────────────────────────────────────────────────────────────────────────────
 name: Terraform Deploy
 run-name: "${{ inputs.action }} · ${{ inputs.directories }} · @${{ github.actor }}"
@@ -34,9 +41,20 @@ on:
   workflow_dispatch:
     inputs:
       directories:
-        description: "Space-separated directories to run, in order (e.g. \"terraform-core terraform-python\")"
+        description: "Directory (or ordered combo) to run"
         required: true
-        type: string
+        type: choice
+        options:
+          - terraform-core
+          - terraform-shared-plan
+          - terraform-shared-aks
+          - terraform-python
+          - terraform-managed-services
+          - terraform-aks-app
+          - terraform-prometheus
+          - terraform-core terraform-shared-plan terraform-python
+          - terraform-core terraform-shared-plan terraform-managed-services
+          - terraform-core terraform-shared-aks terraform-aks-app
       action:
         description: "Action to execute on each directory"
         required: true
