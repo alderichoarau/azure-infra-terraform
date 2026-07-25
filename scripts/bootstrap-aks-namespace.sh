@@ -81,5 +81,12 @@ az role assignment create \
   --assignee-object-id "$PRINCIPAL_ID" \
   --assignee-principal-type ServicePrincipal
 
+echo "→ Granting 'Azure Kubernetes Service RBAC Reader' on namespace 'app-routing-system' (ingress IP discovery) ..."
+az role assignment create \
+  --role "Azure Kubernetes Service RBAC Reader" \
+  --scope "${CLUSTER_ID}/namespaces/app-routing-system" \
+  --assignee-object-id "$PRINCIPAL_ID" \
+  --assignee-principal-type ServicePrincipal
+
 echo
 echo "Done. '$OWNER' can now deploy into namespace '$OWNER' on $CLUSTER_NAME via their ci_app_deploy identity."

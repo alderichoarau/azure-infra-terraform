@@ -90,6 +90,20 @@ jobs:
             --assignee-object-id "${{ inputs.principal_id }}" \
             --assignee-principal-type ServicePrincipal
 
+          # Read-only, scoped to app-routing-system -- deploy-aks.yml's
+          # "Resolve ingress public IP" step needs to `kubectl get svc` in
+          # this *other* shared namespace (the App Routing add-on's ingress
+          # controller lives there, terraform-shared-aks/main.tf's
+          # web_app_routing block) to discover the ingress IP. Without this,
+          # that step gets a 403 from every namespace-scoped identity, which
+          # its retry loop was silently swallowing as "not ready yet" and
+          # burning the full 5-minute timeout before failing -- hit live.
+          az role assignment create \
+            --role "Azure Kubernetes Service RBAC Reader" \
+            --scope "${CLUSTER_ID}/namespaces/app-routing-system" \
+            --assignee-object-id "${{ inputs.principal_id }}" \
+            --assignee-principal-type ServicePrincipal
+
       - name: "Job summary"
         if: always()
         run: |
