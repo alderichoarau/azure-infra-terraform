@@ -10,10 +10,17 @@
 #
 # What it does:
 #   1. Creates the learner's namespace on the shared AKS cluster (idempotent).
-#   2. Grants their ci_app_deploy identity "Azure Kubernetes Service RBAC
-#      Admin", scoped to just that one namespace — so their deploy-aks.yml
-#      workflow (azure-quiz-backend/frontend) can manage Deployments/
-#      Services/Ingresses inside it, and nothing outside it.
+#   2. Grants their ci_app_deploy identity "Azure Kubernetes Service Cluster
+#      User Role" on the cluster itself -- the ARM-level role needed just to
+#      run `az aks get-credentials` (non-admin) and get a kubeconfig at all;
+#      grants zero Kubernetes API access on its own.
+#   3. Grants that same identity "Azure Kubernetes Service RBAC Admin",
+#      scoped to just their one namespace -- the separate Kubernetes-
+#      authorization layer (Azure RBAC for Kubernetes) controlling what they
+#      can actually do with that kubeconfig once they have it. Both roles are
+#      needed together: 2 without 3 gets a kubeconfig that can't do anything;
+#      3 without 2 means deploy-aks.yml's `az aks get-credentials` step fails
+#      with AuthorizationFailed before kubectl ever runs (hit this live).
 #
 # Prerequisites (on YOUR machine): az CLI logged in with rights on
 # rg-shared-prf2026 (Azure Kubernetes Service Cluster Admin Role at least,
@@ -59,6 +66,13 @@ kubectl create namespace "$OWNER" --dry-run=client -o yaml | kubectl apply -f -
 
 echo "→ Resolving cluster resource ID ..."
 CLUSTER_ID=$(az aks show --resource-group "$SHARED_RG" --name "$CLUSTER_NAME" --query id -o tsv)
+
+echo "→ Granting 'Azure Kubernetes Service Cluster User Role' on the cluster to principal $PRINCIPAL_ID ..."
+az role assignment create \
+  --role "Azure Kubernetes Service Cluster User Role" \
+  --scope "$CLUSTER_ID" \
+  --assignee-object-id "$PRINCIPAL_ID" \
+  --assignee-principal-type ServicePrincipal
 
 echo "→ Granting 'Azure Kubernetes Service RBAC Admin' on namespace '$OWNER' to principal $PRINCIPAL_ID ..."
 az role assignment create \

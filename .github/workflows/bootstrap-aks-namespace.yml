@@ -62,9 +62,28 @@ jobs:
         run: |
           kubectl create namespace "${{ inputs.owner }}" --dry-run=client -o yaml | kubectl apply -f -
 
-      - name: "Grant namespace-scoped Azure RBAC role"
+      - name: "Grant cluster-level + namespace-scoped Azure RBAC roles"
         run: |
           CLUSTER_ID=$(az aks show --resource-group "$SHARED_RG" --name "$AKS_CLUSTER" --query id -o tsv)
+
+          # ARM-level role, scoped to the cluster itself -- separate layer
+          # from the Kubernetes-authorization role below. Without this,
+          # `az aks get-credentials` (no --admin, deploy-aks.yml) fails with
+          # AuthorizationFailed on listClusterUserCredential/action before
+          # kubectl even gets a chance to hit the Kubernetes API at all. This
+          # role only grants "can fetch a non-admin kubeconfig" -- it grants
+          # zero Kubernetes API access on its own, that's still entirely
+          # controlled by the namespace-scoped role below.
+          az role assignment create \
+            --role "Azure Kubernetes Service Cluster User Role" \
+            --scope "$CLUSTER_ID" \
+            --assignee-object-id "${{ inputs.principal_id }}" \
+            --assignee-principal-type ServicePrincipal
+
+          # Kubernetes-authorization layer (Azure RBAC for Kubernetes,
+          # azure_rbac_enabled = true on the cluster) -- controls what this
+          # identity can actually do once it has a kubeconfig, scoped to just
+          # this one namespace.
           az role assignment create \
             --role "Azure Kubernetes Service RBAC Admin" \
             --scope "${CLUSTER_ID}/namespaces/${{ inputs.owner }}" \
