@@ -30,12 +30,15 @@ on:
           - plan
           - apply
           - destroy
-      environments:
-        description: 'Which clusters to manage, as a Terraform list literal (e.g. ["nonprod"] or ["nonprod","prod"])'
-        required: false
-        type: string
-        default: '["nonprod"]'
 
+# No `environments` input: HCP Terraform Cloud's remote execution (this
+# workspace's default mode) is unreliable with complex-typed (list) -var
+# values passed via CLI ("Variables not allowed" errors, hit live). Instead,
+# var.environments (terraform-shared-aks/variables.tf) just uses its code
+# default (["nonprod"]) every run. To add the prod cluster, edit that
+# default to ["nonprod","prod"] and re-run this workflow with action=apply —
+# a one-line change, not worth a parametrized input given how rarely this
+# runs at all.
 permissions:
   id-token: write
   contents: read
@@ -85,7 +88,6 @@ jobs:
         run: |
           terraform plan \
             -input=false \
-            -var="environments=${{ inputs.environments }}" \
             -out=tfplan \
             -no-color \
             | tee plan_output.txt
@@ -95,7 +97,6 @@ jobs:
         run: |
           terraform apply \
             -input=false \
-            -var="environments=${{ inputs.environments }}" \
             -auto-approve \
             -no-color \
             | tee apply_output.txt
@@ -105,7 +106,6 @@ jobs:
         run: |
           terraform destroy \
             -input=false \
-            -var="environments=${{ inputs.environments }}" \
             -auto-approve \
             -no-color \
             | tee destroy_output.txt
@@ -114,7 +114,6 @@ jobs:
         if: always()
         run: |
           echo "## Terraform Shared AKS Deploy — ${{ inputs.action }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Environments** : ${{ inputs.environments }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Actor** : @${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
 
           OUTPUT_FILE="${{ inputs.action }}_output.txt"
