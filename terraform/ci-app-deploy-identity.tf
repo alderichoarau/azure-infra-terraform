@@ -41,19 +41,17 @@ resource "azurerm_role_assignment" "ci_app_deploy_contributor" {
 # extra federated credential for that ref.
 
 resource "azurerm_federated_identity_credential" "backend_deploy" {
-  name                = "github-azure-quiz-backend-main"
-  resource_group_name = data.azurerm_resource_group.rg.name
-  parent_id           = azurerm_user_assigned_identity.ci_app_deploy.id
-  audience            = ["api://AzureADTokenExchange"]
-  issuer              = "https://token.actions.githubusercontent.com"
-  subject             = "repo:alderichoarau/azure-quiz-backend:ref:refs/heads/main"
+  name      = "github-azure-quiz-backend-main"
+  parent_id = azurerm_user_assigned_identity.ci_app_deploy.id
+  audience  = ["api://AzureADTokenExchange"]
+  issuer    = "https://token.actions.githubusercontent.com"
+  subject   = "repo:alderichoarau/azure-quiz-backend:ref:refs/heads/main"
 }
 
 resource "azurerm_federated_identity_credential" "frontend_deploy" {
-  name                = "github-azure-quiz-frontend-main"
-  resource_group_name = data.azurerm_resource_group.rg.name
-  parent_id           = azurerm_user_assigned_identity.ci_app_deploy.id
-  audience            = ["api://AzureADTokenExchange"]
-  issuer              = "https://token.actions.githubusercontent.com"
-  subject             = "repo:alderichoarau/azure-quiz-frontend:ref:refs/heads/main"
+  name      = "github-azure-quiz-frontend-main"
+  parent_id = azurerm_user_assigned_identity.ci_app_deploy.id
+  audience  = ["api://AzureADTokenExchange"]
+  issuer    = "https://token.actions.githubusercontent.com"
+  subject   = "repo:alderichoarau/azure-quiz-frontend:ref:refs/heads/main"
 }

@@ -141,8 +141,15 @@ jobs:
       # the "Secrets: Read and write" repository permission — not a classic PAT,
       # which would grant access to every repo this account can see. Store it
       # as this repo's GH_PAT_APPS secret.
+      # continue-on-error: this step syncing a secret is a convenience on top
+      # of an already-successful apply, not part of what "apply succeeded"
+      # means -- e.g. before GH_PAT_APPS is configured (see comment above), a
+      # failure here shouldn't mark the whole run red and obscure that the
+      # actual infra apply worked. Check this step's own logs if AZURE_CLIENT_ID
+      # ever seems stale in the app repos.
       - name: Sync AZURE_CLIENT_ID to app repos
         if: inputs.action == 'apply' && success()
+        continue-on-error: true
         env:
           GH_TOKEN: ${{ secrets.GH_PAT_APPS }}
         run: |
