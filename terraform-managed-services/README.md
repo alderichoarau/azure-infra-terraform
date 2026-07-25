@@ -34,10 +34,17 @@ is expected to keep working.
 
 ## After applying
 
-- `terraform output backend_api_key` (sensitive) — wire into
-  `azure-quiz-frontend`'s build.
-- `scripts/sync-app-secrets.sh` (repo root) pushes the values both app repos'
-  CI needs into their GitHub secrets.
+- Nothing manual needed for `backend_api_key`: `azure-quiz-frontend`'s
+  `swa-deploy.yml`/`deploy-aks.yml` read the `backend-api-key` secret
+  straight from Key Vault at deploy time (`az keyvault secret show`), not
+  from a GitHub secret. `terraform output backend_api_key` is there for
+  debugging only.
+- `scripts/sync-app-secrets.sh` (repo root) pushes `AZURE_CLIENT_ID`/
+  `AZURE_TENANT_ID`/`AZURE_SUBSCRIPTION_ID`/`AZURE_RG_NAME`/`AZURE_OWNER`
+  into both app repos' GitHub secrets in one shot — usually not needed after
+  the first setup, since only `AZURE_CLIENT_ID` changes across
+  destroy/apply cycles, and `deploy-terraform.yml` already syncs that one
+  automatically whenever `terraform-core` is part of the run.
 
 ## Terraform reference
 
@@ -118,8 +125,8 @@ No modules.
 | postgres\_version | PostgreSQL Flexible Server major version | `string` | `"16"` | no |
 | redis\_sku\_name | SKU for the Azure Managed Redis instance (replaces the retired Azure Cache for Redis) | `string` | `"Balanced_B0"` | no |
 | resource\_group\_name | Name of the Resource Group pre-created by the trainer — same one ../terraform-core uses. | `string` | n/a | yes |
-| shared\_plan\_name | Name of the shared App Service plan (../terraform-shared-plan/variables.tf's plan\_name — keep in sync) | `string` | `"plan-npr-prf2026"` | no |
-| shared\_rg\_name | Resource Group containing the shared App Service plan (../terraform-shared-plan) | `string` | `"rg-shared-prf2026"` | no |
+| shared\_plan\_name | Name of the shared App Service plan (../terraform-shared-plan/variables.tf's plan\_name — keep in sync). No default on purpose — comes from the AZURE\_SHARED\_PLAN\_NAME GitHub secret (TF\_VAR\_shared\_plan\_name) or an explicit -var locally. | `string` | n/a | yes |
+| shared\_rg\_name | Resource Group containing the shared App Service plan (../terraform-shared-plan). No default on purpose — comes from the AZURE\_SHARED\_RG\_NAME GitHub secret (TF\_VAR\_shared\_rg\_name, deploy-terraform.yml) or an explicit -var locally, so this naming convention isn't hardcoded in the repo. | `string` | n/a | yes |
 | tags | Additional tags to merge with default tags | `map(string)` | `{}` | no |
 
 ## Outputs

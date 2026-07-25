@@ -174,8 +174,11 @@ terraform init
 # 3. Plan / Apply — blocked by default, see below
 terraform plan \
   -var="owner=first-last" \
-  -var="resource_group_name=rg-first-last"
+  -var="resource_group_name=rg-first-last" \
+  -var="automation_only=true"
 ```
+
+`terraform-python` / `terraform-managed-services` / `terraform-aks-app` / `terraform-shared-plan` / `terraform-shared-aks` also require `-var="shared_rg_name=..."` (and, depending on the directory, `-var="shared_plan_name=..."` / `-var="plan_name=..."` / `-var="cohort=..."`) — none of these have a default in code, see the secrets table below for what CI sets them to. Fastest way to match CI's values locally: `export TF_VAR_shared_rg_name=rg-shared-prf2026 TF_VAR_shared_plan_name=plan-npr-prf2026 TF_VAR_plan_name=plan-npr-prf2026 TF_VAR_cohort=prf2026` once per shell session instead of repeating `-var` flags.
 
 `terraform-core` must be applied before any of `terraform-python` / `terraform-managed-services` / `terraform-aks-app` — they read its outputs via `terraform_remote_state`.
 
@@ -196,6 +199,9 @@ Every HCP Terraform workspace in this repo runs in **local execution mode**: `pl
 | `AZURE_RG_NAME` | Resource Group name (`rg-first-last`) |
 | `AZURE_ALERT_EMAIL` | Email address that receives Azure Monitor alert notifications (`terraform-python`'s `alert_email`) |
 | `TRAINER_IP_CIDR` | CIDR allowed for SSH (22) on the Prometheus VM, e.g. `203.0.113.4/32` — never `0.0.0.0/0` |
+| `AZURE_SHARED_RG_NAME` | Name of the trainer-provisioned shared Resource Group (e.g. `rg-shared-prf2026`) — required by every directory that reads the shared Plan/cluster (`terraform-python`, `terraform-managed-services`, `terraform-aks-app`, `terraform-shared-plan`, `terraform-shared-aks`); no default in code on purpose |
+| `AZURE_SHARED_PLAN_NAME` | Name of the shared App Service Plan (e.g. `plan-npr-prf2026`) — required by `terraform-python`, `terraform-managed-services`, `terraform-shared-plan`; no default in code |
+| `AZURE_COHORT` | Cohort/promo identifier (e.g. `prf2026`) — required by `terraform-aks-app`, `terraform-shared-aks`; no default in code |
 | `TF_API_TOKEN` | HCP Terraform team token, exposed as `TF_TOKEN_app_terraform_io` for state/run access |
 | `GH_PAT_APPS` | Fine-grained PAT scoped to `azure-quiz-backend`/`azure-quiz-frontend`, "Secrets: Read and write" only — used by `deploy-terraform.yml` to auto-sync `AZURE_CLIENT_ID` after every apply that includes `terraform-core` |
 | `INFRACOST_API_KEY` | Infracost API key (cost estimation on PRs) |

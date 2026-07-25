@@ -84,6 +84,19 @@ env:
   TF_VAR_alert_email: ${{ secrets.AZURE_ALERT_EMAIL }}
   # terraform-prometheus only.
   TF_VAR_trainer_ip_cidr: ${{ secrets.TRAINER_IP_CIDR }}
+  # Shared-cohort naming convention (rg-shared-prf2026 / plan-npr-prf2026 /
+  # prf2026) — no default in any variables.tf on purpose, so this repo's code
+  # doesn't hardcode a cohort-specific naming scheme. shared_plan_name and
+  # plan_name are two different variable names for the same value (consumer
+  # directories vs. terraform-shared-plan itself, which owns the resource) —
+  # both need setting from the one secret. Required by terraform-python,
+  # terraform-managed-services, terraform-aks-app, terraform-shared-plan,
+  # terraform-shared-aks — ignored by terraform-core/terraform-prometheus,
+  # which don't declare these variables.
+  TF_VAR_shared_rg_name: ${{ secrets.AZURE_SHARED_RG_NAME }}
+  TF_VAR_shared_plan_name: ${{ secrets.AZURE_SHARED_PLAN_NAME }}
+  TF_VAR_plan_name: ${{ secrets.AZURE_SHARED_PLAN_NAME }}
+  TF_VAR_cohort: ${{ secrets.AZURE_COHORT }}
 
 jobs:
   terraform:

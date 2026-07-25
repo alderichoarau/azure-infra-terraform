@@ -1,7 +1,6 @@
 variable "shared_rg_name" {
-  description = "Resource Group also holding ../terraform-shared-plan/'s App Service Plan (own state, same RG) — the AKS cluster(s) below join it rather than getting a new RG, same mutualised-infra convention, deliberately a different Terraform state (see main.tf's header comment)."
+  description = "Resource Group also holding ../terraform-shared-plan/'s App Service Plan (own state, same RG) — the AKS cluster(s) below join it rather than getting a new RG, same mutualised-infra convention, deliberately a different Terraform state (see main.tf's header comment). No default on purpose — comes from the AZURE_SHARED_RG_NAME GitHub secret (TF_VAR_shared_rg_name, deploy-terraform.yml) or an explicit -var locally, so this naming convention isn't hardcoded in the repo."
   type        = string
-  default     = "rg-shared-prf2026"
 }
 
 variable "location" {
@@ -25,9 +24,8 @@ variable "environments" {
 }
 
 variable "cohort" {
-  description = "Cohort/promo identifier used in resource names, matches the rg-shared-prf2026 naming (\"prf2026\")."
+  description = "Cohort/promo identifier used in resource names. No default on purpose — comes from the AZURE_COHORT GitHub secret (TF_VAR_cohort) or an explicit -var locally, so this naming convention isn't hardcoded in the repo."
   type        = string
-  default     = "prf2026"
 }
 
 variable "kubernetes_version" {
@@ -37,7 +35,7 @@ variable "kubernetes_version" {
 }
 
 variable "node_vm_size" {
-  description = "VM size for the system node pool. Standard_D2s_v3 chosen for the same reason as the Prometheus VM (../terraform/variables.tf, prometheus_vm_size) — B-series sizes were found capacity-restricted on this subscription in francecentral."
+  description = "VM size for the system node pool. Standard_D2s_v3 chosen for the same reason as the Prometheus VM (../terraform-prometheus/variables.tf, prometheus_vm_size) — B-series sizes were found capacity-restricted on this subscription in francecentral."
   type        = string
   default     = "Standard_D2s_v3"
 }

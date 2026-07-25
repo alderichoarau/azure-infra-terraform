@@ -37,15 +37,13 @@ variable "tags" {
 }
 
 variable "shared_rg_name" {
-  description = "Resource Group containing the shared AKS cluster (../terraform-shared-aks)"
+  description = "Resource Group containing the shared AKS cluster (../terraform-shared-aks). No default on purpose — comes from the AZURE_SHARED_RG_NAME GitHub secret (TF_VAR_shared_rg_name, deploy-terraform.yml) or an explicit -var locally, so this naming convention isn't hardcoded in the repo."
   type        = string
-  default     = "rg-shared-prf2026"
 }
 
 variable "cohort" {
-  description = "Cohort/promo identifier, must match ../terraform-shared-aks's var.cohort — used to build the shared cluster's name (aks-<environment>-<cohort>) since it lives outside this apply's own Resource Group."
+  description = "Cohort/promo identifier, must match ../terraform-shared-aks's var.cohort — used to build the shared cluster's name (aks-<environment>-<cohort>) since it lives outside this apply's own Resource Group. No default on purpose — comes from the AZURE_COHORT GitHub secret (TF_VAR_cohort) or an explicit -var locally."
   type        = string
-  default     = "prf2026"
 }
 
 variable "core_workspace_name" {

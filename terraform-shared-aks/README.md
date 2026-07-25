@@ -101,13 +101,13 @@ No modules.
 
 | Name | Description | Type | Default | Required |
 | ---- | ----------- | ---- | ------- | :------: |
-| cohort | Cohort/promo identifier used in resource names, matches the rg-shared-prf2026 naming ("prf2026"). | `string` | `"prf2026"` | no |
+| cohort | Cohort/promo identifier used in resource names. No default on purpose — comes from the AZURE\_COHORT GitHub secret (TF\_VAR\_cohort) or an explicit -var locally, so this naming convention isn't hardcoded in the repo. | `string` | n/a | yes |
 | environments | Which AKS clusters to create in this apply. Cahier des charges calls for one cluster per environment (non-prod/prod) — starting with non-prod only. | `list(string)` | <pre>[<br/>  "nonprod"<br/>]</pre> | no |
 | kubernetes\_version | AKS Kubernetes version. Left unset (null) by default to track whatever AKS currently defaults new clusters to; pin explicitly once the cluster exists if you need to control upgrade timing. | `string` | `null` | no |
 | location | n/a | `string` | `"francecentral"` | no |
 | node\_count | Fixed node count for the system pool (no autoscaling — keep this cheap and predictable for a training cluster shared by a whole cohort). Bump manually if pods start getting stuck Pending under load. | `number` | `2` | no |
-| node\_vm\_size | VM size for the system node pool. Standard\_D2s\_v3 chosen for the same reason as the Prometheus VM (../terraform/variables.tf, prometheus\_vm\_size) — B-series sizes were found capacity-restricted on this subscription in francecentral. | `string` | `"Standard_D2s_v3"` | no |
-| shared\_rg\_name | Resource Group also holding ../terraform-shared-plan/'s App Service Plan (own state, same RG) — the AKS cluster(s) below join it rather than getting a new RG, same mutualised-infra convention, deliberately a different Terraform state (see main.tf's header comment). | `string` | `"rg-shared-prf2026"` | no |
+| node\_vm\_size | VM size for the system node pool. Standard\_D2s\_v3 chosen for the same reason as the Prometheus VM (../terraform-prometheus/variables.tf, prometheus\_vm\_size) — B-series sizes were found capacity-restricted on this subscription in francecentral. | `string` | `"Standard_D2s_v3"` | no |
+| shared\_rg\_name | Resource Group also holding ../terraform-shared-plan/'s App Service Plan (own state, same RG) — the AKS cluster(s) below join it rather than getting a new RG, same mutualised-infra convention, deliberately a different Terraform state (see main.tf's header comment). No default on purpose — comes from the AZURE\_SHARED\_RG\_NAME GitHub secret (TF\_VAR\_shared\_rg\_name, deploy-terraform.yml) or an explicit -var locally, so this naming convention isn't hardcoded in the repo. | `string` | n/a | yes |
 
 ## Outputs
 

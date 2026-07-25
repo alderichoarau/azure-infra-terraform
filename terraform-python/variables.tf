@@ -37,15 +37,13 @@ variable "tags" {
 }
 
 variable "shared_rg_name" {
-  description = "Resource Group containing the shared App Service plan (../terraform-shared-plan)"
+  description = "Resource Group containing the shared App Service plan (../terraform-shared-plan). No default on purpose — comes from the AZURE_SHARED_RG_NAME GitHub secret (TF_VAR_shared_rg_name, deploy-terraform.yml) or an explicit -var locally, so this naming convention isn't hardcoded in the repo."
   type        = string
-  default     = "rg-shared-prf2026"
 }
 
 variable "shared_plan_name" {
-  description = "Name of the shared App Service plan (../terraform-shared-plan/variables.tf's plan_name — keep in sync)"
+  description = "Name of the shared App Service plan (../terraform-shared-plan/variables.tf's plan_name — keep in sync). No default on purpose — comes from the AZURE_SHARED_PLAN_NAME GitHub secret (TF_VAR_shared_plan_name) or an explicit -var locally."
   type        = string
-  default     = "plan-npr-prf2026"
 }
 
 variable "core_workspace_name" {

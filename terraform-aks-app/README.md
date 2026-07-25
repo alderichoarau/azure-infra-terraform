@@ -76,13 +76,13 @@ No modules.
 | Name | Description | Type | Default | Required |
 | ---- | ----------- | ---- | ------- | :------: |
 | automation\_only | Guard against accidental local apply/destroy — set to true only by the CI pipeline (TF\_VAR\_automation\_only). | `bool` | n/a | yes |
-| cohort | Cohort/promo identifier, must match ../terraform-shared-aks's var.cohort — used to build the shared cluster's name (aks-<environment>-<cohort>) since it lives outside this apply's own Resource Group. | `string` | `"prf2026"` | no |
+| cohort | Cohort/promo identifier, must match ../terraform-shared-aks's var.cohort — used to build the shared cluster's name (aks-<environment>-<cohort>) since it lives outside this apply's own Resource Group. No default on purpose — comes from the AZURE\_COHORT GitHub secret (TF\_VAR\_cohort) or an explicit -var locally. | `string` | n/a | yes |
 | core\_workspace\_name | HCP Terraform Cloud workspace name of ../terraform-core, read via terraform\_remote\_state for the ci\_app\_deploy identity that needs AcrPush on this track's ACR. | `string` | `"azure-core-alderic-hoarau"` | no |
 | environment | Environment this deployment belongs to — must match one of ../terraform-shared-aks's var.environments, since it's used to build the shared cluster's name below. | `string` | `"nonprod"` | no |
 | location | Azure region for resources | `string` | `"francecentral"` | no |
 | owner | Learner identifier — must match ../terraform-core's var.owner (same RG, same resource-naming convention). | `string` | n/a | yes |
 | resource\_group\_name | Name of the Resource Group pre-created by the trainer — same one ../terraform-core uses. | `string` | n/a | yes |
-| shared\_rg\_name | Resource Group containing the shared AKS cluster (../terraform-shared-aks) | `string` | `"rg-shared-prf2026"` | no |
+| shared\_rg\_name | Resource Group containing the shared AKS cluster (../terraform-shared-aks). No default on purpose — comes from the AZURE\_SHARED\_RG\_NAME GitHub secret (TF\_VAR\_shared\_rg\_name, deploy-terraform.yml) or an explicit -var locally, so this naming convention isn't hardcoded in the repo. | `string` | n/a | yes |
 | tags | Additional tags to merge with default tags | `map(string)` | `{}` | no |
 
 ## Outputs
