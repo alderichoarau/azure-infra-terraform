@@ -1,0 +1,180 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# The single workflow for every Terraform directory in this repo — takes a
+# space-separated list of directories and one action (plan/apply/destroy),
+# and runs that action on each directory in turn, in the order given.
+# Replaces what used to be one workflow per directory (terraform-core.yml,
+# terraform-python.yml, terraform-managed-services.yml, terraform-aks-app.yml,
+# terraform-shared-aks.yml, terraform-shared-plan.yml — kept on disk as
+# *.yml.superseded, inert since GitHub Actions only picks up *.yml/*.yaml
+# directly, purely for reference) — one file to maintain instead of six
+# near-identical copies.
+#
+# Per-directory variables are passed as TF_VAR_* environment variables, not
+# `-var` CLI flags: Terraform silently ignores a TF_VAR_x that doesn't match
+# any variable a given directory declares, so the same env block works
+# unmodified whether the directory in question is a per-student track (needs
+# owner/resource_group_name), the Prometheus stack (also needs
+# trainer_ip_cidr), or a trainer-side shared directory (needs neither) —
+# no per-directory case statement required, unlike the old `-var=...` workflows.
+#
+# Sequential, not a matrix: a matrix's jobs run in parallel by default, which
+# would race terraform-python/terraform-managed-services/terraform-aks-app
+# against terraform-core before its state exists. A plain bash loop in one
+# job keeps the ordering the caller specified, at the cost of running
+# directories one at a time instead of in parallel. Order is the caller's
+# responsibility — not validated here beyond checking every named directory
+# exists and is one this workflow is allowed to touch — but the common case
+# (terraform-core before anything that reads its remote state) is documented
+# in the root README's directory table.
+# ─────────────────────────────────────────────────────────────────────────────
+name: Terraform Deploy
+run-name: "${{ inputs.action }} · ${{ inputs.directories }} · @${{ github.actor }}"
+
+on:
+  workflow_dispatch:
+    inputs:
+      directories:
+        description: "Space-separated directories to run, in order (e.g. \"terraform-core terraform-python\")"
+        required: true
+        type: string
+      action:
+        description: "Action to execute on each directory"
+        required: true
+        type: choice
+        options:
+          - plan
+          - apply
+          - destroy
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  TF_VERSION: "~> 1.9"
+  ARM_USE_OIDC: "true"
+  ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+  ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+  ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+  TF_TOKEN_app_terraform_io: ${{ secrets.TF_API_TOKEN }}
+  TF_VAR_automation_only: "true"
+  # Per-student track vars (terraform-core/python/managed-services/aks-app) —
+  # ignored by directories that don't declare a matching variable, e.g. the
+  # trainer-side terraform-shared-aks/terraform-shared-plan.
+  TF_VAR_owner: ${{ secrets.AZURE_OWNER }}
+  TF_VAR_resource_group_name: ${{ secrets.AZURE_RG_NAME }}
+  TF_VAR_alert_email: ${{ secrets.AZURE_ALERT_EMAIL }}
+  # terraform-prometheus only.
+  TF_VAR_trainer_ip_cidr: ${{ secrets.TRAINER_IP_CIDR }}
+
+jobs:
+  terraform:
+    name: Terraform ${{ inputs.action }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Validate directory list
+        run: |
+          ALLOWED="terraform-core terraform-python terraform-managed-services terraform-aks-app terraform-shared-aks terraform-shared-plan terraform-prometheus"
+          for dir in ${{ inputs.directories }}; do
+            case " $ALLOWED " in
+              *" $dir "*) ;;
+              *)
+                echo "::error::'$dir' is not a directory this workflow can run ($ALLOWED). terraform-legacy-retired is deliberately excluded — nothing in it is live."
+                exit 1
+                ;;
+            esac
+            if [ ! -d "$dir" ]; then
+              echo "::error::'$dir' does not exist in this repo."
+              exit 1
+            fi
+          done
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Azure Login (OIDC)
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Run action on each directory
+        id: run
+        run: |
+          SUMMARY_FILE="$RUNNER_TEMP/summary.md"
+          echo "## Terraform Deploy — ${{ inputs.action }}" > "$SUMMARY_FILE"
+          echo "- **Owner**  : ${{ secrets.AZURE_OWNER }}" >> "$SUMMARY_FILE"
+          echo "- **Branch** : ${{ github.ref_name }}" >> "$SUMMARY_FILE"
+          echo "- **Actor**  : @${{ github.actor }}" >> "$SUMMARY_FILE"
+          echo "" >> "$SUMMARY_FILE"
+
+          STATUS=0
+          for dir in ${{ inputs.directories }}; do
+            echo "──────────────────────────────────────────────"
+            echo "→ $dir : terraform init"
+            echo "──────────────────────────────────────────────"
+            (
+              cd "$dir"
+              set -e
+              terraform init -input=false
+              terraform fmt -check -recursive
+              terraform validate
+              case "${{ inputs.action }}" in
+                plan)
+                  terraform plan -input=false -out=tfplan -no-color
+                  ;;
+                apply)
+                  terraform apply -input=false -auto-approve -no-color
+                  ;;
+                destroy)
+                  terraform destroy -input=false -auto-approve -no-color
+                  ;;
+              esac
+            )
+            RC=$?
+            if [ "$RC" -eq 0 ]; then
+              echo "- ✅ \`$dir\`: ${{ inputs.action }} succeeded" >> "$SUMMARY_FILE"
+            else
+              echo "- ❌ \`$dir\`: ${{ inputs.action }} FAILED (exit $RC) — stopping, later directories skipped" >> "$SUMMARY_FILE"
+              STATUS=1
+              break
+            fi
+          done
+
+          cat "$SUMMARY_FILE" >> "$GITHUB_STEP_SUMMARY"
+          exit $STATUS
+
+      # ── Sync AZURE_CLIENT_ID into the app repos ─────────────────────────────────
+      # Only relevant when terraform-core was part of this run and actually
+      # applied cleanly — ci_app_deploy_client_id (terraform-core/outputs.tf)
+      # is stable across applies unless azurerm_user_assigned_identity.ci_app_deploy
+      # is recreated, which a full destroy/apply cycle does with a new
+      # client-id, silently breaking azure-quiz-backend/frontend's
+      # deploy(-aks).yml (wrong AZURE_CLIENT_ID -> OIDC login fails) until
+      # someone remembers to paste the new value by hand. This step removes
+      # that manual step entirely.
+      #
+      # gh CLI's own token (GITHUB_TOKEN) only has permissions scoped to *this*
+      # repo — writing a secret into another repo needs a PAT with rights on
+      # those repos specifically (GH_PAT_APPS, fine-grained, "Secrets: Read
+      # and write" only, scoped to exactly azure-quiz-backend + azure-quiz-frontend).
+      # continue-on-error: this is a convenience on top of an already-successful
+      # apply, not part of what "apply succeeded" means.
+      - name: Sync AZURE_CLIENT_ID to app repos
+        if: inputs.action == 'apply' && success() && contains(inputs.directories, 'terraform-core')
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT_APPS }}
+        run: |
+          CLIENT_ID=$(terraform -chdir=terraform-core output -raw ci_app_deploy_client_id)
+          for repo in azure-quiz-backend azure-quiz-frontend; do
+            echo "Setting AZURE_CLIENT_ID on alderichoarau/$repo ..."
+            gh secret set AZURE_CLIENT_ID --repo "alderichoarau/$repo" --body "$CLIENT_ID"
+          done

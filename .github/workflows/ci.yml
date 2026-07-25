@@ -9,19 +9,36 @@ on:
     branches: [main]
 
 permissions:
-  contents: read  # default minimal — jobs override as needed
+  contents: read # default minimal — jobs override as needed
 
 env:
   TF_TOKEN_app_terraform_io: ${{ secrets.TF_API_TOKEN }}
 
 jobs:
   # ── Validate ────────────────────────────────────────────────────────────────
+  # Matrix over every live Terraform directory in this repo — one state each
+  # since the terraform-core/terraform-python/terraform-managed-services/
+  # terraform-aks-app/terraform-shared-aks/terraform-shared-plan/
+  # terraform-prometheus split (see root README.md). terraform-legacy-retired
+  # is deliberately excluded: every .tf file in it was renamed to *.tf.retired
+  # specifically so Terraform (and this CI) ignores it.
   validate:
-    name: Validate
+    name: Validate (${{ matrix.directory }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        directory:
+          - terraform-core
+          - terraform-python
+          - terraform-managed-services
+          - terraform-aks-app
+          - terraform-shared-aks
+          - terraform-shared-plan
+          - terraform-prometheus
     defaults:
       run:
-        working-directory: terraform
+        working-directory: ${{ matrix.directory }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -54,6 +71,11 @@ jobs:
         run: terraform validate
 
   # ── Security ─────────────────────────────────────────────────────────────────
+  # Whole-repo scan rather than a per-directory matrix: Checkov walks the tree
+  # and picks up every terraform-*/ directory's .tf files on its own.
+  # terraform-legacy-retired is naturally skipped too — Checkov's terraform
+  # framework only looks at files ending in .tf, and every file in that
+  # directory has been renamed to *.tf.retired.
   security:
     name: Security — Checkov
     runs-on: ubuntu-latest
@@ -64,7 +86,7 @@ jobs:
       - name: Checkov Security Scan
         uses: bridgecrewio/checkov-action@v12
         with:
-          directory: terraform
+          directory: .
           framework: terraform
           output_format: cli
           soft_fail: true

@@ -1,5 +1,5 @@
 variable "shared_rg_name" {
-  description = "Resource Group already holding the shared App Service plan (../terraform/main.tf's shared_rg_name/shared_plan_name vars point here too) — the AKS cluster(s) below join it rather than getting a new RG, same mutualised-infra convention already used for the App Service plan."
+  description = "Resource Group also holding ../terraform-shared-plan/'s App Service Plan (own state, same RG) — the AKS cluster(s) below join it rather than getting a new RG, same mutualised-infra convention, deliberately a different Terraform state (see main.tf's header comment)."
   type        = string
   default     = "rg-shared-prf2026"
 }

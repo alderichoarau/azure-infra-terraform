@@ -1,7 +1,9 @@
-# Separate HCP Terraform Cloud workspace from ../terraform's "azure-infra-alderic-hoarau"
-# — deliberately: this module's lifecycle (apply once per cohort, almost never destroyed)
-# has nothing to do with a per-student RG's apply/destroy cycles, and mixing the two
-# states would mean every student `terraform destroy` risks state-locking or, worse,
+# Separate HCP Terraform Cloud workspace from every per-student directory's
+# — deliberately: this module's lifecycle (apply/destroy independently, to cut
+# cost when the AKS track isn't in active use — see main.tf's header comment
+# on why this is split from ../terraform-shared-plan/ too) has nothing to do
+# with a per-student RG's apply/destroy cycles, and mixing states would mean
+# every student `terraform destroy` risks state-locking or, worse,
 # accidentally targeting the shared cluster.
 #
 # Create this workspace once in the alderic-hoarau HCP Terraform org before first apply
@@ -11,8 +13,8 @@
 # (.github/workflows/terraform-shared-aks.yml) or the CLI with -var flags will
 # work: in the workspace's Settings > General, set Execution Mode to "Local"
 # (not the "Remote" default). Not expressible in this HCL block -- it's a
-# workspace-level setting, UI/API only. Same setting ../terraform's
-# "azure-infra-alderic-hoarau" workspace already has, for the same reason:
+# workspace-level setting, UI/API only. Same setting every other workspace in
+# this repo already has, for the same reason:
 # with Remote execution, `terraform plan/apply` actually runs on HCP Terraform
 # Cloud's own workers, which have neither GitHub Actions' OIDC token nor a
 # logged-in az CLI -- azure/login@v3's OIDC federation only reaches the

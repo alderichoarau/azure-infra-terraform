@@ -3,32 +3,45 @@ run-name: "Cleanup · destroy · ${{ github.event_name == 'schedule' && 'schedul
 
 on:
   # schedule:
-    # Fridays 18:00 Europe/Paris = 16:00 UTC (summer/CEST).
-    # Cron is always UTC and does not follow DST — in winter (CET) this fires at 17:00 Paris time instead of 18:00.
-    # - cron: "0 16 * * 5"
+  # Fridays 18:00 Europe/Paris = 16:00 UTC (summer/CEST).
+  # Cron is always UTC and does not follow DST — in winter (CET) this fires at 17:00 Paris time instead of 18:00.
+  # - cron: "0 16 * * 5"
   workflow_dispatch: {}
 
+# Destroys every per-student directory this learner might have applied,
+# in reverse dependency order: terraform-python / terraform-managed-services
+# / terraform-aks-app first (they read terraform-core's remote state, so
+# destroying core first would leave them pointing at a state that no longer
+# exists), then terraform-core last. Each directory is destroyed even if it
+# was never applied -- `terraform destroy` on an empty state is a no-op, so
+# this doesn't need to know in advance which tracks a given learner enabled.
+#
+# Deliberately does NOT touch terraform-shared-aks / terraform-shared-plan
+# (trainer-side, shared across the whole cohort -- a weekly per-student
+# cleanup must never be able to reach them) or terraform-prometheus (its own
+# lifecycle, see that directory's README on why it's meant to stay up once
+# enabled rather than getting swept by this weekly job).
+
 permissions:
-  id-token: write  # OIDC token for Azure login
+  id-token: write # OIDC token for Azure login
   contents: read
 
 env:
-  TF_VERSION:              "~> 1.9"
-  ARM_USE_OIDC:            "true"
-  ARM_CLIENT_ID:           ${{ secrets.AZURE_CLIENT_ID }}
-  ARM_TENANT_ID:           ${{ secrets.AZURE_TENANT_ID }}
-  ARM_SUBSCRIPTION_ID:     ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+  TF_VERSION: "~> 1.9"
+  ARM_USE_OIDC: "true"
+  ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+  ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+  ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
   TF_TOKEN_app_terraform_io: ${{ secrets.TF_API_TOKEN }}
-  TF_VAR_automation_only:  "true"
+  TF_VAR_automation_only: "true"
+  TF_VAR_owner: ${{ secrets.AZURE_OWNER }}
+  TF_VAR_resource_group_name: ${{ secrets.AZURE_RG_NAME }}
+  TF_VAR_alert_email: ${{ secrets.AZURE_ALERT_EMAIL }}
 
 jobs:
   destroy:
     name: Terraform Destroy (weekly cleanup)
     runs-on: ubuntu-latest
-
-    defaults:
-      run:
-        working-directory: terraform
 
     steps:
       - name: Checkout
@@ -42,38 +55,38 @@ jobs:
       - name: Azure Login (OIDC)
         uses: azure/login@v3
         with:
-          client-id:       ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id:       ${{ secrets.AZURE_TENANT_ID }}
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Terraform Init
-        run: terraform init
-
-      - name: Terraform Destroy
+      - name: Destroy each directory (reverse dependency order)
         run: |
-          terraform destroy \
-            -var="owner=${{ secrets.AZURE_OWNER }}" \
-            -var="resource_group_name=${{ secrets.AZURE_RG_NAME }}" \
-            -auto-approve \
-            -no-color \
-            | tee destroy_output.txt
+          SUMMARY_FILE="$RUNNER_TEMP/summary.md"
+          echo "## Terraform Weekly Cleanup" > "$SUMMARY_FILE"
+          echo "- **Owner**   : ${{ secrets.AZURE_OWNER }}" >> "$SUMMARY_FILE"
+          echo "- **Trigger** : ${{ github.event_name }}" >> "$SUMMARY_FILE"
+          echo "" >> "$SUMMARY_FILE"
 
-      - name: Job Summary
-        if: always()
-        run: |
-          echo "## Terraform Weekly Cleanup" >> $GITHUB_STEP_SUMMARY
-          echo "- **Owner**  : ${{ secrets.AZURE_OWNER }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Trigger**: ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
+          STATUS=0
+          for dir in terraform-aks-app terraform-managed-services terraform-python terraform-core; do
+            echo "──────────────────────────────────────────────"
+            echo "→ $dir : terraform destroy"
+            echo "──────────────────────────────────────────────"
+            (
+              cd "$dir"
+              set -e
+              terraform init -input=false
+              terraform destroy -input=false -auto-approve -no-color
+            )
+            RC=$?
+            if [ "$RC" -eq 0 ]; then
+              echo "- ✅ \`$dir\`: destroyed (or already empty)" >> "$SUMMARY_FILE"
+            else
+              echo "- ❌ \`$dir\`: destroy FAILED (exit $RC) — stopping, later directories skipped" >> "$SUMMARY_FILE"
+              STATUS=1
+              break
+            fi
+          done
 
-          if [ -f destroy_output.txt ]; then
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "<details><summary>Terraform destroy output</summary>" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-            tail -n 20 destroy_output.txt >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-            echo "</details>" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "_No output captured — the destroy step likely failed before producing any._" >> $GITHUB_STEP_SUMMARY
-          fi
+          cat "$SUMMARY_FILE" >> "$GITHUB_STEP_SUMMARY"
+          exit $STATUS

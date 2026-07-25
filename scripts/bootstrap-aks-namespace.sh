@@ -5,8 +5,8 @@
 # is a cluster-scoped Kubernetes operation, and granting a role assignment on
 # the shared cluster needs rights outside any single learner's own Resource
 # Group — same trust boundary as pre-creating a learner's RG in the first
-# place (see terraform/aks.tf's header comment and
-# ../terraform-shared-aks/README.md for the full reasoning).
+# place (see terraform-aks-app/main.tf's header comment and
+# terraform-shared-aks/README.md for the full reasoning).
 #
 # What it does:
 #   1. Creates the learner's namespace on the shared AKS cluster (idempotent).
@@ -31,11 +31,11 @@
 #
 #   <owner>                       learner identifier, e.g. jean-dupont — becomes
 #                                 the namespace name (must match var.owner in
-#                                 their terraform/terraform.tfvars).
+#                                 their terraform-core/terraform.tfvars).
 #   <ci_app_deploy_principal_id>  object ID (NOT client ID) of their
 #                                 ci_app_deploy identity — they get this from
 #                                 `terraform output ci_app_deploy_principal_id`
-#                                 in their own azure-infra-terraform apply.
+#                                 in their own terraform-core apply.
 #   [environment]                 nonprod (default) or prod.
 # ──────────────────────────────────────────────────────────────────────────────
 set -euo pipefail

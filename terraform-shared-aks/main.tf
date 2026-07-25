@@ -1,12 +1,21 @@
 # ──────────────────────────────────────────────────────────────────────────────
 # main.tf — mutualised AKS cluster(s), one per environment (var.environments).
 #
-# TP Java/Angular — piste "AKS", trainer-side. This is the counterpart to the
-# comment in ../terraform/main.tf ("Shared App Service plan (in a separate
-# Resource Group)") — same shared RG (rg-shared-prf2026), same idea: applied
-# once by the trainer, referenced read-only by every student's own Terraform
-# via a data source (to be added to ../terraform when the student-side AKS
-# track lands), never applied per-student.
+# TP Java/Angular — piste "AKS", trainer-side. Same shared RG
+# (rg-shared-prf2026) as ../terraform-shared-plan/'s App Service Plan, same
+# idea: applied once by the trainer, referenced read-only by every student's
+# own Terraform (../terraform-aks-app) via a data source, never applied
+# per-student.
+#
+# Deliberately its OWN directory/state, separate from
+# ../terraform-shared-plan/ even though both are trainer-side/shared/rarely
+# touched: this cluster is the single most expensive resource in the whole
+# repo (a control plane + node pool running continuously), while the App
+# Service Plan is comparatively cheap and needed continuously by both the
+# Python and Java tracks. Splitting them lets the cluster be destroyed
+# between AKS-track sessions to cut cost, without dragging the Plan (and
+# every learner's Python/Java app on it) down with it — the two resources
+# must never be forced to live or die together.
 #
 # Network note (see conversation / cahier des charges §4.3): Postgres and
 # Redis in each student's own RG are Private-Endpoint-only today, reachable

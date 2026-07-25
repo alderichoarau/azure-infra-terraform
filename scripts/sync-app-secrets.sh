@@ -20,8 +20,8 @@
 #     Group lives in
 #   - gh CLI, already logged in (`gh auth login`) with a token that has repo
 #     admin rights on both azure-quiz-backend and azure-quiz-frontend
-#   - terraform, with this repo's state already applied (the outputs below
-#     must exist)
+#   - terraform, with ../terraform-core's state already applied (the outputs
+#     below must exist)
 #
 # Usage: run from anywhere, no arguments:
 #   ./scripts/sync-app-secrets.sh
@@ -29,7 +29,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-TF_DIR="$SCRIPT_DIR/../terraform"
+TF_DIR="$SCRIPT_DIR/../terraform-core"
 GITHUB_ORG="alderichoarau"
 REPOS=("azure-quiz-backend" "azure-quiz-frontend")
 
