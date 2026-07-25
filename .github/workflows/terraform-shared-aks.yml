@@ -1,0 +1,132 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Applies terraform-shared-aks/ (the mutualised AKS cluster(s), trainer-side —
+# see that directory's README.md). Deliberately a separate workflow from
+# terraform.yml, not a job in it: different working directory, different HCP
+# Terraform Cloud workspace (azure-shared-aks-prf2026 vs
+# azure-infra-alderic-hoarau), and — most importantly — this one should almost
+# never run (once per cohort, or to add the prod cluster), unlike terraform.yml
+# which every learner triggers repeatedly. Keeping them separate means a
+# learner's plan/apply/destroy can never accidentally target the shared
+# cluster, and this workflow's runs stay easy to audit precisely because
+# they're rare.
+#
+# Reuses this repo's existing AZURE_CLIENT_ID/TENANT_ID/SUBSCRIPTION_ID/
+# TF_API_TOKEN secrets (terraform.yml) rather than adding new ones — same
+# identity already has the rights needed on rg-shared-prf2026 (it's the one
+# used to bootstrap the whole subscription's shared resources, including the
+# App Service plan referenced by ../terraform/main.tf's shared_plan_name).
+# ─────────────────────────────────────────────────────────────────────────────
+name: Terraform Shared AKS Deploy
+run-name: "Shared AKS · ${{ inputs.action }} · triggered by @${{ github.actor }}"
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "Action to execute"
+        required: true
+        type: choice
+        options:
+          - plan
+          - apply
+          - destroy
+      environments:
+        description: 'Which clusters to manage, as a Terraform list literal (e.g. ["nonprod"] or ["nonprod","prod"])'
+        required: false
+        type: string
+        default: '["nonprod"]'
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  TF_VERSION: "~> 1.9"
+  ARM_USE_OIDC: "true"
+  ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+  ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+  ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+  TF_WORKING_DIR: terraform-shared-aks
+  TF_TOKEN_app_terraform_io: ${{ secrets.TF_API_TOKEN }}
+
+jobs:
+  terraform:
+    name: Terraform ${{ inputs.action }} (shared AKS)
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: terraform-shared-aks
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Azure Login (OIDC)
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Validate
+        run: terraform validate
+
+      - name: Terraform Plan
+        if: inputs.action == 'plan'
+        run: |
+          terraform plan \
+            -input=false \
+            -var="environments=${{ inputs.environments }}" \
+            -out=tfplan \
+            -no-color \
+            | tee plan_output.txt
+
+      - name: Terraform Apply
+        if: inputs.action == 'apply'
+        run: |
+          terraform apply \
+            -input=false \
+            -var="environments=${{ inputs.environments }}" \
+            -auto-approve \
+            -no-color \
+            | tee apply_output.txt
+
+      - name: Terraform Destroy
+        if: inputs.action == 'destroy'
+        run: |
+          terraform destroy \
+            -input=false \
+            -var="environments=${{ inputs.environments }}" \
+            -auto-approve \
+            -no-color \
+            | tee destroy_output.txt
+
+      - name: Job Summary
+        if: always()
+        run: |
+          echo "## Terraform Shared AKS Deploy — ${{ inputs.action }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Environments** : ${{ inputs.environments }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Actor** : @${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+
+          OUTPUT_FILE="${{ inputs.action }}_output.txt"
+          if [ -f "$OUTPUT_FILE" ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "<details><summary>Terraform ${{ inputs.action }} output</summary>" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            tail -n 20 "$OUTPUT_FILE" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "</details>" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "_No output captured — the ${{ inputs.action }} step likely failed before producing any._" >> $GITHUB_STEP_SUMMARY
+          fi

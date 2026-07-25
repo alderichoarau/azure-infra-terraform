@@ -19,9 +19,15 @@ Terraform Cloud workspace (`azure-shared-aks-prf2026`) precisely so a student
 
 1. Create the HCP Terraform Cloud workspace `azure-shared-aks-prf2026` in the
    `alderic-hoarau` org (UI, or let `terraform init` offer to create it).
-2. `az login` with an identity that has Contributor (or better) on
-   `rg-shared-prf2026`.
-3. `terraform init && terraform plan` — review, then `terraform apply`.
+2. Either:
+   - **Via GitHub Actions** (recommended, keeps this in the same audit trail
+     as everything else in this repo): run the "Terraform Shared AKS Deploy"
+     workflow (`.github/workflows/terraform-shared-aks.yml`), action=`apply`.
+     Reuses this repo's existing `AZURE_CLIENT_ID`/`AZURE_TENANT_ID`/
+     `AZURE_SUBSCRIPTION_ID`/`TF_API_TOKEN` secrets — no new secrets needed.
+   - **Locally**: `az login` with an identity that has Contributor (or
+     better) on `rg-shared-prf2026`, then `terraform init && terraform plan`
+     — review, then `terraform apply`.
 
 ## After applying
 
