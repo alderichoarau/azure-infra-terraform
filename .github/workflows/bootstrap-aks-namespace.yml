@@ -1,0 +1,81 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# CI equivalent of scripts/bootstrap-aks-namespace.sh — same logic, run
+# without needing az/kubectl installed locally. Trainer-only tooling: creates
+# one learner's namespace on the shared AKS cluster and grants their
+# ci_app_deploy identity a role scoped to just that namespace. See that
+# script's header comment (and terraform-shared-aks/README.md) for why this
+# can't be self-service from a learner's own Terraform.
+# ─────────────────────────────────────────────────────────────────────────────
+name: Bootstrap AKS Namespace
+run-name: "Bootstrap AKS namespace · ${{ inputs.owner }} · @${{ github.actor }}"
+
+on:
+  workflow_dispatch:
+    inputs:
+      owner:
+        description: "Learner identifier (matches their var.owner) — becomes the namespace name"
+        required: true
+        type: string
+      principal_id:
+        description: "Object ID (not client ID) of their ci_app_deploy identity — from `terraform output ci_app_deploy_principal_id` in their own apply"
+        required: true
+        type: string
+      environment:
+        description: "Which shared cluster"
+        required: true
+        type: choice
+        options:
+          - nonprod
+          - prod
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  SHARED_RG: rg-shared-prf2026
+  AKS_CLUSTER: aks-${{ inputs.environment }}-prf2026
+
+jobs:
+  bootstrap:
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Azure Login (OIDC)"
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: "Install kubectl"
+        run: az aks install-cli
+
+      - name: "Get AKS admin credentials"
+        run: |
+          az aks get-credentials \
+            --resource-group "$SHARED_RG" \
+            --name "$AKS_CLUSTER" \
+            --admin \
+            --overwrite-existing
+
+      - name: "Create namespace (idempotent)"
+        run: |
+          kubectl create namespace "${{ inputs.owner }}" --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: "Grant namespace-scoped Azure RBAC role"
+        run: |
+          CLUSTER_ID=$(az aks show --resource-group "$SHARED_RG" --name "$AKS_CLUSTER" --query id -o tsv)
+          az role assignment create \
+            --role "Azure Kubernetes Service RBAC Admin" \
+            --scope "${CLUSTER_ID}/namespaces/${{ inputs.owner }}" \
+            --assignee-object-id "${{ inputs.principal_id }}" \
+            --assignee-principal-type ServicePrincipal
+
+      - name: "Job summary"
+        if: always()
+        run: |
+          echo "## Bootstrap AKS namespace" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Owner** : ${{ inputs.owner }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Cluster** : $AKS_CLUSTER" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Principal ID** : ${{ inputs.principal_id }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Actor** : @${{ github.actor }}" >> "$GITHUB_STEP_SUMMARY"
