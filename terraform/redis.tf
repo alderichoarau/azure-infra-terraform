@@ -6,9 +6,16 @@
 # https://aka.ms/AzureCacheForRedisRetirement — hence azurerm_managed_redis
 # (requires azurerm >= 4.60, see providers.tf) instead of azurerm_redis_cache.
 #
-# public_network_access = "Disabled" means the Private Endpoint below is the
-# only path in — no firewall/allow-list exception exists for this SKU family
-# once disabled.
+# public_network_access = "Enabled" (piste AKS): the shared AKS cluster lives
+# in its own VNet, outside this one, with no peering (see
+# ../terraform-shared-aks/main.tf's network note — peering would need a
+# manual trainer-side grant per learner, doesn't scale to a whole cohort).
+# Access control here falls back to the primary access key (default_database
+# below) + TLS as the real boundary, same trade-off already made and
+# documented for backend<->frontend CORS (app-service-java.tf). App Service
+# (managed-services track) is unaffected: the Private Endpoint + private DNS
+# zone below still make anything inside this VNet resolve to the private IP
+# regardless of this setting, so its traffic keeps taking the private path.
 # ──────────────────────────────────────────────────────────────────────────────
 
 resource "azurerm_managed_redis" "app" {
@@ -17,7 +24,7 @@ resource "azurerm_managed_redis" "app" {
   location            = var.location
   sku_name            = var.redis_sku_name
 
-  public_network_access = "Disabled"
+  public_network_access = "Enabled"
 
   default_database {
     # Off by default on this resource — without it, primary_access_key isn't

@@ -31,6 +31,12 @@ variable "shared_plan_name" {
   default     = "plan-npr-prf2026"
 }
 
+variable "cohort" {
+  description = "Cohort/promo identifier, must match ../terraform-shared-aks's var.cohort — used to build the shared AKS cluster's name (aks-<environment>-<cohort>, aks.tf) since it lives outside this apply's own Resource Group."
+  type        = string
+  default     = "prf2026"
+}
+
 variable "java_app_plan_sku" {
   description = "SKU of the Java backend's App Service Plan (app-service-java.tf), created in the learner's own Resource Group. S3 confirmed working on the Simplon subscription during TP validation — Premium v2/v3 is blocked there by the org-wide \"NoPremiumApps\" policy."
   type        = string
@@ -70,6 +76,12 @@ variable "redis_sku_name" {
   description = "SKU for the Azure Managed Redis instance (replaces the retired Azure Cache for Redis)"
   type        = string
   default     = "Balanced_B0"
+}
+
+variable "postgres_public_access" {
+  description = "Postgres Flexible Server networking mode (database.tf) -- true: public access + firewall rule (needed for the AKS track, since the shared cluster has no VNet peering into this RG). false: the original VNet-integrated/no-public-access setup. Azure forbids both at once on this resource, so this toggles between two entirely different resource configurations, not just a flag."
+  type        = bool
+  default     = true
 }
 
 variable "enable_prometheus_stack" {

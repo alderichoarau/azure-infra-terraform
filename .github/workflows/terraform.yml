@@ -124,6 +124,34 @@ jobs:
             -no-color \
             | tee destroy_output.txt
 
+      # ── Sync AZURE_CLIENT_ID into the app repos ─────────────────────────────────
+      # ci_app_deploy_client_id (outputs.tf) is stable across applies as long as
+      # azurerm_user_assigned_identity.ci_app_deploy isn't recreated — but a full
+      # destroy/apply cycle (done repeatedly while validating this TP) DOES
+      # recreate it with a new client-id, which would silently break
+      # azure-quiz-backend/frontend's deploy.yml (wrong AZURE_CLIENT_ID -> OIDC
+      # login fails) until someone remembers to paste the new value by hand.
+      # This step removes that manual step entirely.
+      #
+      # gh CLI's own token (GITHUB_TOKEN) only has permissions scoped to *this*
+      # repo, not azure-quiz-backend/frontend — writing a secret into another
+      # repo needs a PAT with rights on those repos specifically. Use a
+      # fine-grained PAT (Settings > Developer settings > Fine-grained tokens),
+      # scoped to exactly azure-quiz-backend + azure-quiz-frontend, with only
+      # the "Secrets: Read and write" repository permission — not a classic PAT,
+      # which would grant access to every repo this account can see. Store it
+      # as this repo's GH_PAT_APPS secret.
+      - name: Sync AZURE_CLIENT_ID to app repos
+        if: inputs.action == 'apply' && success()
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT_APPS }}
+        run: |
+          CLIENT_ID=$(terraform output -raw ci_app_deploy_client_id)
+          for repo in azure-quiz-backend azure-quiz-frontend; do
+            echo "Setting AZURE_CLIENT_ID on alderichoarau/$repo ..."
+            gh secret set AZURE_CLIENT_ID --repo "alderichoarau/$repo" --body "$CLIENT_ID"
+          done
+
       # ── Summary ───────────────────────────────────────────────────────────────
       - name: Job Summary
         if: always()

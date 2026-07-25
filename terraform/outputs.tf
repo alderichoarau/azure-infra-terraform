@@ -18,6 +18,36 @@ output "ci_app_deploy_client_id" {
   value       = azurerm_user_assigned_identity.ci_app_deploy.client_id
 }
 
+output "ci_app_deploy_principal_id" {
+  description = "Object ID (not client ID) of ci_app_deploy — give this to the trainer when asking them to run scripts/bootstrap-aks-namespace.sh (terraform-shared-aks), it's the principal the namespace-scoped Azure RBAC role assignment on the shared AKS cluster needs to target."
+  value       = azurerm_user_assigned_identity.ci_app_deploy.principal_id
+}
+
+output "acr_login_server" {
+  description = "Login server of this learner's Container Registry (aks.tf) — used as the image prefix in azure-quiz-backend/frontend's deploy-aks.yml (e.g. <acr_login_server>/quiz-backend:<tag>)."
+  value       = azurerm_container_registry.app.login_server
+}
+
+output "aks_namespace" {
+  description = "Kubernetes namespace this learner's AKS-track resources should deploy into on the shared cluster (bootstrap-aks-namespace.sh creates it) — same value as var.owner, exposed here so deploy-aks.yml workflows don't have to duplicate that assumption."
+  value       = var.owner
+}
+
+# Both re-exported straight from the input vars (rather than left as tfvars-only)
+# so scripts/sync-app-secrets.sh can read every GitHub secret value it needs with
+# a single `terraform output`, regardless of whether owner/resource_group_name
+# were supplied via terraform.tfvars, -var, TF_VAR_*, or HCP Terraform Cloud
+# workspace variables.
+output "owner" {
+  description = "Learner identifier (var.owner) — goes into both app repos' AZURE_OWNER GitHub secret."
+  value       = var.owner
+}
+
+output "resource_group_name" {
+  description = "Resource Group name (var.resource_group_name) — goes into both app repos' AZURE_RG_NAME GitHub secret."
+  value       = var.resource_group_name
+}
+
 output "app_service_url" {
   description = "URL of the Python App Service"
   value       = "https://${module.app_service_python.default_hostname}"
