@@ -61,7 +61,7 @@ variable "postgres_sku_name" {
 variable "postgres_version" {
   description = "PostgreSQL Flexible Server major version"
   type        = string
-  default     = "16"
+  default     = "17"
 }
 
 variable "postgres_public_access" {

@@ -122,7 +122,7 @@ No modules.
 | owner | Learner identifier — must match ../terraform-core's var.owner (same RG, same resource-naming convention). | `string` | n/a | yes |
 | postgres\_public\_access | Postgres Flexible Server networking mode (database.tf) -- true: public access + firewall rule (needed for the AKS track, since the shared cluster has no VNet peering into this RG). false: the original VNet-integrated/no-public-access setup. Azure forbids both at once on this resource, so this toggles between two entirely different resource configurations, not just a flag. | `bool` | `true` | no |
 | postgres\_sku\_name | SKU for the PostgreSQL Flexible Server. Burstable tier (B\_*) recommended: General Purpose/Memory Optimized tiers consume vCPU quota families that were found to be zero on several student subscriptions during TP validation. | `string` | `"B_Standard_B1ms"` | no |
-| postgres\_version | PostgreSQL Flexible Server major version | `string` | `"16"` | no |
+| postgres\_version | PostgreSQL Flexible Server major version | `string` | `"17"` | no |
 | redis\_sku\_name | SKU for the Azure Managed Redis instance (replaces the retired Azure Cache for Redis) | `string` | `"Balanced_B0"` | no |
 | resource\_group\_name | Name of the Resource Group pre-created by the trainer — same one ../terraform-core uses. | `string` | n/a | yes |
 | shared\_plan\_name | Name of the shared App Service plan (../terraform-shared-plan/variables.tf's plan\_name — keep in sync). No default on purpose — comes from the AZURE\_SHARED\_PLAN\_NAME GitHub secret (TF\_VAR\_shared\_plan\_name) or an explicit -var locally. | `string` | n/a | yes |
