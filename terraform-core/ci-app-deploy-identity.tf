@@ -41,25 +41,53 @@ resource "azurerm_role_assignment" "ci_app_deploy_contributor" {
   principal_id         = azurerm_user_assigned_identity.ci_app_deploy.principal_id
 }
 
-# One federated credential per repo — GitHub's OIDC subject is
-# repo:<org>/<repo>:ref:refs/heads/<branch>, so it's tied to both the exact
-# repo AND the branch the workflow runs from. workflow_dispatch uses whichever
-# branch/ref is selected at trigger time; deploy.yml/deploy-aks.yml are only
-# ever triggered from main today. Triggering from another branch would need an
-# extra federated credential for that ref.
+# One pair of federated credentials per repo, subject on a GitHub Environment
+# rather than a ref: repo:<org>/<repo>:environment:<name>. GitHub emits this
+# subject for any job that declares `environment: <name>` — stable no matter
+# which branch or tag actually triggered the run, unlike
+# repo:<org>/<repo>:ref:refs/heads/<branch>|refs/tags/<tag> (a DIFFERENT
+# subject per branch/tag, exact-match only, no wildcard support on this
+# resource). That's what broke frontend's first tag-triggered release deploy
+# (release-push.yml dispatches aks-deploy.yml/swa-deploy.yml pinned to a
+# release tag, e.g. v1.1.0) with AADSTS700213 — no credential matched
+# ref:refs/tags/v1.1.0. Every azure/login-using workflow in both app repos
+# (aks-deploy.yml + asp-deploy.yml/swa-deploy.yml) now sets
+# `environment: ${{ inputs.environment }}` on its job to match. Backend has no
+# tag-triggered release workflow yet, but gets the same pair for consistency
+# and so it's already covered the day one is added.
+#
+# Superseded the previous one-credential-per-branch setup (subjects
+# repo:.../ref:refs/heads/main) -- removed below since nothing emits that
+# subject anymore now that every workflow declares `environment:`.
 
-resource "azurerm_federated_identity_credential" "backend_deploy" {
-  name                      = "github-azure-quiz-backend-main"
+resource "azurerm_federated_identity_credential" "backend_deploy_env_nonprod" {
+  name                      = "github-azure-quiz-backend-env-nonprod"
   user_assigned_identity_id = azurerm_user_assigned_identity.ci_app_deploy.id
   audience                  = ["api://AzureADTokenExchange"]
   issuer                    = "https://token.actions.githubusercontent.com"
-  subject                   = "repo:alderichoarau/azure-quiz-backend:ref:refs/heads/main"
+  subject                   = "repo:alderichoarau/azure-quiz-backend:environment:nonprod"
 }
 
-resource "azurerm_federated_identity_credential" "frontend_deploy" {
-  name                      = "github-azure-quiz-frontend-main"
+resource "azurerm_federated_identity_credential" "backend_deploy_env_prod" {
+  name                      = "github-azure-quiz-backend-env-prod"
   user_assigned_identity_id = azurerm_user_assigned_identity.ci_app_deploy.id
   audience                  = ["api://AzureADTokenExchange"]
   issuer                    = "https://token.actions.githubusercontent.com"
-  subject                   = "repo:alderichoarau/azure-quiz-frontend:ref:refs/heads/main"
+  subject                   = "repo:alderichoarau/azure-quiz-backend:environment:prod"
+}
+
+resource "azurerm_federated_identity_credential" "frontend_deploy_env_nonprod" {
+  name                      = "github-azure-quiz-frontend-env-nonprod"
+  user_assigned_identity_id = azurerm_user_assigned_identity.ci_app_deploy.id
+  audience                  = ["api://AzureADTokenExchange"]
+  issuer                    = "https://token.actions.githubusercontent.com"
+  subject                   = "repo:alderichoarau/azure-quiz-frontend:environment:nonprod"
+}
+
+resource "azurerm_federated_identity_credential" "frontend_deploy_env_prod" {
+  name                      = "github-azure-quiz-frontend-env-prod"
+  user_assigned_identity_id = azurerm_user_assigned_identity.ci_app_deploy.id
+  audience                  = ["api://AzureADTokenExchange"]
+  issuer                    = "https://token.actions.githubusercontent.com"
+  subject                   = "repo:alderichoarau/azure-quiz-frontend:environment:prod"
 }
