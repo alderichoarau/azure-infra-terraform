@@ -48,7 +48,11 @@ jobs:
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: "Install kubectl"
-        run: az aks install-cli
+        # --kubelogin-version pinned: unpinned, this calls GitHub's
+        # unauthenticated releases/latest API (60 req/hour per IP, shared
+        # across every GitHub-hosted runner) and intermittently fails with
+        # "403 rate limit exceeded" -- hit live on the app repos' aks-deploy.yml.
+        run: az aks install-cli --kubelogin-version v0.2.19
 
       - name: "Get AKS admin credentials"
         run: |

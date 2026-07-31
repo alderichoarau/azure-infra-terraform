@@ -148,9 +148,10 @@ jobs:
 
           STATUS=0
           for dir in ${{ inputs.directories }}; do
-            echo "──────────────────────────────────────────────"
-            echo "→ $dir : terraform init"
-            echo "──────────────────────────────────────────────"
+            # ::group::/::endgroup:: fold this directory's output into its own
+            # named, collapsible section in the Actions log UI -- much easier
+            # to jump to a specific directory than scrolling one long stream.
+            echo "::group::$dir · terraform ${{ inputs.action }}"
             (
               cd "$dir"
               set -e
@@ -170,6 +171,7 @@ jobs:
               esac
             )
             RC=$?
+            echo "::endgroup::"
             if [ "$RC" -eq 0 ]; then
               echo "- ✅ \`$dir\`: ${{ inputs.action }} succeeded" >> "$SUMMARY_FILE"
             else
