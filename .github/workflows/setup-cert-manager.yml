@@ -1,0 +1,130 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# CI equivalent of scripts/setup-cert-manager.sh — same logic, run without
+# needing az/kubectl/helm installed locally. Trainer-only, ONE-SHOT per
+# shared cluster (not per learner): installs cert-manager and registers two
+# Let's Encrypt ClusterIssuers (staging + prod) so any learner's nip.io
+# Ingress can get a real, browser-trusted TLS cert instead of the App
+# Routing add-on's self-signed default. See that script's header comment for
+# the full reasoning (why nip.io makes HTTP-01 work at all, staging vs prod).
+#
+# Re-running is safe (helm upgrade --install + kubectl apply are both
+# idempotent) — e.g. to bump the cert-manager version.
+# ─────────────────────────────────────────────────────────────────────────────
+name: Setup cert-manager (Let's Encrypt)
+run-name: "Setup cert-manager · ${{ inputs.environment }} · @${{ github.actor }}"
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Which shared cluster"
+        required: true
+        type: choice
+        default: nonprod
+        options:
+          - nonprod
+          - prod
+      acme_email:
+        description: "Contact email Let's Encrypt uses for expiry/revocation notices"
+        required: true
+        type: string
+        default: "alderic.hoarau@gmail.com"
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  SHARED_RG: rg-shared-prf2026
+  AKS_CLUSTER: aks-${{ inputs.environment }}-prf2026
+  CERT_MANAGER_VERSION: v1.16.2
+
+jobs:
+  setup-cert-manager:
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Azure Login (OIDC)"
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: "Install kubectl"
+        run: az aks install-cli
+
+      - name: "Get AKS admin credentials"
+        run: |
+          az aks get-credentials \
+            --resource-group "$SHARED_RG" \
+            --name "$AKS_CLUSTER" \
+            --admin \
+            --overwrite-existing
+
+      - name: "Install/upgrade cert-manager"
+        run: |
+          echo "::group::helm repo add jetstack"
+          helm repo add jetstack https://charts.jetstack.io --force-update
+          helm repo update jetstack
+          echo "::endgroup::"
+
+          echo "::group::helm upgrade --install cert-manager"
+          helm upgrade --install cert-manager jetstack/cert-manager \
+            --namespace cert-manager \
+            --create-namespace \
+            --version "$CERT_MANAGER_VERSION" \
+            --set installCRDs=true \
+            --wait
+          echo "::endgroup::"
+
+      - name: "Apply Let's Encrypt ClusterIssuers (staging + prod)"
+        run: |
+          # HTTP-01 solver routed through the App Routing add-on's own
+          # IngressClass -- see setup-cert-manager.sh for why two issuers
+          # (staging avoids burning the prod rate limit while iterating).
+          echo "::group::kubectl apply ClusterIssuers"
+          cat <<EOF | kubectl apply -f -
+          apiVersion: cert-manager.io/v1
+          kind: ClusterIssuer
+          metadata:
+            name: letsencrypt-staging
+          spec:
+            acme:
+              server: https://acme-staging-v02.api.letsencrypt.org/directory
+              email: ${{ inputs.acme_email }}
+              privateKeySecretRef:
+                name: letsencrypt-staging-account-key
+              solvers:
+                - http01:
+                    ingress:
+                      ingressClassName: webapprouting.kubernetes.azure.com
+          ---
+          apiVersion: cert-manager.io/v1
+          kind: ClusterIssuer
+          metadata:
+            name: letsencrypt-prod
+          spec:
+            acme:
+              server: https://acme-v02.api.letsencrypt.org/directory
+              email: ${{ inputs.acme_email }}
+              privateKeySecretRef:
+                name: letsencrypt-prod-account-key
+              solvers:
+                - http01:
+                    ingress:
+                      ingressClassName: webapprouting.kubernetes.azure.com
+          EOF
+          echo "::endgroup::"
+
+          echo "::group::wait for Ready"
+          kubectl wait --for=condition=Ready clusterissuer/letsencrypt-staging --timeout=60s
+          kubectl wait --for=condition=Ready clusterissuer/letsencrypt-prod --timeout=60s
+          echo "::endgroup::"
+
+      - name: Job summary
+        if: always()
+        run: |
+          echo "## Setup cert-manager · $AKS_CLUSTER" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **cert-manager** : $CERT_MANAGER_VERSION" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **ClusterIssuers** : letsencrypt-staging, letsencrypt-prod" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Ingress opt-in : \`cert-manager.io/cluster-issuer: letsencrypt-prod\` annotation + \`spec.tls\` block." >> "$GITHUB_STEP_SUMMARY"
