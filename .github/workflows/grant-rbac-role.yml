@@ -1,0 +1,117 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Trainer-only tooling: grants an Azure RBAC role to a given principal on a
+# given Resource Group in this subscription. Built for the recurring case of
+# a student's own deployer identity (their bootstrap App Registration/Managed
+# Identity, often in a completely different Azure AD tenant -- e.g. a
+# "student subscription" sandbox tenant, not Simplon's) needing Reader on
+# rg-shared-prf2026 to read the shared App Service Plan / AKS cluster via
+# data sources -- see terraform-aks-app and terraform-python's data blocks.
+#
+# Cross-tenant: Azure RBAC supports assigning a role to a security principal
+# from a different Microsoft Entra tenant than the subscription's home
+# tenant (no B2B guest invite needed) -- that's exactly the scenario this
+# exists for. Kept generic (role + resource group as inputs, not hardcoded)
+# since the same need comes up for other roles/scopes too, not just Reader
+# on the shared RG.
+#
+# Needs the identity behind AZURE_CLIENT_ID to itself hold
+# Microsoft.Authorization/roleAssignments/write on the target scope (Owner
+# or User Access Administrator) -- plain Contributor is NOT enough to grant
+# roles to others.
+# ─────────────────────────────────────────────────────────────────────────────
+name: Grant RBAC Role
+run-name: "Grant ${{ inputs.role }} on ${{ inputs.resource_group }} · to ${{ inputs.object_id }} · @${{ github.actor }}"
+
+on:
+  workflow_dispatch:
+    inputs:
+      object_id:
+        description: "Object ID (principal ID) of the identity to grant the role to -- NOT its Client ID/App ID, those are different GUIDs for the same identity."
+        required: true
+        type: string
+      role:
+        description: "Rôle Azure"
+        required: true
+        type: choice
+        default: "Reader"
+        options:
+          - Reader
+          - Contributor
+          - Owner
+          - "User Access Administrator"
+          - "Key Vault Secrets User"
+          - "Key Vault Secrets Officer"
+          - "Storage Blob Data Contributor"
+          - AcrPull
+          - AcrPush
+          - "Azure Kubernetes Service Cluster User Role"
+          - "Azure Kubernetes Service RBAC Admin"
+          - "Azure Kubernetes Service RBAC Reader"
+          - "Autre (voir role_custom)"
+      role_custom:
+        description: "Rôle exact à utiliser si 'Autre (voir role_custom)' est sélectionné ci-dessus -- ignoré sinon"
+        required: false
+        type: string
+        default: ""
+      resource_group:
+        description: "Resource Group to scope the role to (in this workflow's own subscription)"
+        required: true
+        type: string
+        default: "rg-shared-prf2026"
+      principal_type:
+        description: "Type of the principal behind object_id"
+        required: true
+        type: choice
+        default: "ServicePrincipal"
+        options:
+          - ServicePrincipal
+          - User
+          - Group
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  grant:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Azure Login (OIDC)
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Resolve role name
+        id: role
+        run: |
+          if [ "${{ inputs.role }}" = "Autre (voir role_custom)" ]; then
+            if [ -z "${{ inputs.role_custom }}" ]; then
+              echo "::error::role_custom est vide alors que 'Autre (voir role_custom)' a été choisi pour role."
+              exit 1
+            fi
+            echo "name=${{ inputs.role_custom }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "name=${{ inputs.role }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create role assignment
+        run: |
+          SCOPE="/subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/${{ inputs.resource_group }}"
+          echo "::group::az role assignment create"
+          az role assignment create \
+            --role "${{ steps.role.outputs.name }}" \
+            --assignee-object-id "${{ inputs.object_id }}" \
+            --assignee-principal-type "${{ inputs.principal_type }}" \
+            --scope "$SCOPE"
+          echo "::endgroup::"
+
+      - name: Job summary
+        if: always()
+        run: |
+          echo "## Grant RBAC Role" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Role** : ${{ steps.role.outputs.name }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Scope** : rg ${{ inputs.resource_group }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Object ID** : ${{ inputs.object_id }} (${{ inputs.principal_type }})" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Actor** : @${{ github.actor }}" >> "$GITHUB_STEP_SUMMARY"
