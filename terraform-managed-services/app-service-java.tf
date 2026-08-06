@@ -3,7 +3,7 @@
 # (data.azurerm_service_plan.shared, main.tf -- same plan the Python App
 # Service/Function App already use, created in ../terraform-shared-plan/main.tf).
 #
-# Used to have its own dedicated plan-java-<owner>-tf here (S3, per learner) --
+# Used to have its own dedicated plan-java-<owner>-tf here (B3, per learner) --
 # consolidated onto the shared plan to cut cost: one fewer App Service Plan
 # per learner. The Web App itself still lives in the learner's own Resource
 # Group (data.azurerm_resource_group.rg) -- only the compute plan underneath

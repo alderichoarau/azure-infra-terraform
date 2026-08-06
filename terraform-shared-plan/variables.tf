@@ -14,7 +14,7 @@ variable "plan_name" {
 }
 
 variable "plan_sku" {
-  description = "SKU for the shared App Service Plan. S3: sized to comfortably host every learner's Python App Service + Function App + Java Web App on one pool of compute (all three are Linux app stacks — an App Service Plan is just capacity, Azure isolates each app within it regardless of runtime)."
+  description = "SKU for the shared App Service Plan. B3: sized to comfortably host every learner's Python App Service + Function App + Java Web App on one pool of compute (all three are Linux app stacks — an App Service Plan is just capacity, Azure isolates each app within it regardless of runtime)."
   type        = string
-  default     = "S3"
+  default     = "B3"
 }

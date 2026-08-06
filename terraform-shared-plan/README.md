@@ -76,7 +76,7 @@ No modules.
 | ---- | ----------- | ---- | ------- | :------: |
 | location | n/a | `string` | `"francecentral"` | no |
 | plan\_name | Name of the shared App Service Plan. Every per-student directory that reads this plan (../terraform-python, ../terraform-managed-services) sets its own shared\_plan\_name var to this same value — keep both in sync if you ever rename it. No default on purpose — comes from the AZURE\_SHARED\_PLAN\_NAME GitHub secret (TF\_VAR\_plan\_name) or an explicit -var locally. | `string` | n/a | yes |
-| plan\_sku | SKU for the shared App Service Plan. S3: sized to comfortably host every learner's Python App Service + Function App + Java Web App on one pool of compute (all three are Linux app stacks — an App Service Plan is just capacity, Azure isolates each app within it regardless of runtime). | `string` | `"S3"` | no |
+| plan\_sku | SKU for the shared App Service Plan. B3: sized to comfortably host every learner's Python App Service + Function App + Java Web App on one pool of compute (all three are Linux app stacks — an App Service Plan is just capacity, Azure isolates each app within it regardless of runtime). | `string` | `"B3"` | no |
 | shared\_rg\_name | Resource Group pre-created by the trainer, shared across the whole cohort — also holds ../terraform-shared-aks/'s AKS cluster(s), own state (see that directory's main.tf for why they're split). No default on purpose — comes from the AZURE\_SHARED\_RG\_NAME GitHub secret (TF\_VAR\_shared\_rg\_name, deploy-terraform.yml) or an explicit -var locally, so this naming convention isn't hardcoded in the repo. | `string` | n/a | yes |
 
 ## Outputs
