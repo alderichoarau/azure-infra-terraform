@@ -107,5 +107,20 @@ resource "azurerm_kubernetes_cluster" "this" {
     dns_zone_ids = []
   }
 
+  # Secrets Store CSI Driver add-on (equivalent of
+  # `az aks enable-addons --addons azure-keyvault-secrets-provider`), moved
+  # here instead of enabling it by hand on the live cluster -- a manual `az`
+  # toggle doesn't survive this cluster's regular destroy/recreate cycle
+  # (see this file's own header comment), so the CRDs (SecretProviderClass
+  # etc.) would vanish again on the next apply and any learner chart relying
+  # on them would immediately regress. secret_rotation_enabled = false: no
+  # learner has asked for live secret rotation, and polling every mounted
+  # secret every couple minutes across a whole cohort's pods is unneeded
+  # cost/complexity for a training cluster -- same "keep this cheap and
+  # predictable" reasoning as the fixed node_count above.
+  key_vault_secrets_provider {
+    secret_rotation_enabled = false
+  }
+
   tags = local.tags
 }
