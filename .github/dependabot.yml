@@ -8,7 +8,61 @@ registries:
 
 updates:
   - package-ecosystem: "terraform"
-    directory: "/terraform"
+    directory: "/terraform-core"
+    registries:
+      - hcp-terraform
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: "terraform"
+    directory: "/terraform-python"
+    registries:
+      - hcp-terraform
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: "terraform"
+    directory: "/terraform-managed-services"
+    registries:
+      - hcp-terraform
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: "terraform"
+    directory: "/terraform-aks-app"
+    registries:
+      - hcp-terraform
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: "terraform"
+    directory: "/terraform-shared-aks"
+    registries:
+      - hcp-terraform
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: "terraform"
+    directory: "/terraform-shared-plan"
+    registries:
+      - hcp-terraform
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: "terraform"
+    directory: "/terraform-prometheus"
     registries:
       - hcp-terraform
     schedule:
