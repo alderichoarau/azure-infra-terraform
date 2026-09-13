@@ -1,5 +1,5 @@
 name: Terraform CI
-run-name: "CI · fmt · tflint · validate · checkov · ${{ github.ref_name }} by @${{ github.actor }}"
+run-name: "CI · fmt · tflint · validate · checkov${{ github.event_name == 'pull_request' && ' · plan' || '' }} · ${{ github.ref_name }} by @${{ github.actor }}"
 
 on:
   workflow_dispatch:
@@ -12,6 +12,7 @@ permissions:
   contents: read # default minimal — jobs override as needed
 
 env:
+  TF_VERSION: "~> 1.9"
   TF_TOKEN_app_terraform_io: ${{ secrets.TF_API_TOKEN }}
 
 jobs:
@@ -46,7 +47,7 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v4
         with:
-          terraform_version: "~> 1.9"
+          terraform_version: ${{ env.TF_VERSION }}
 
       - name: Setup tflint
         uses: terraform-linters/setup-tflint@v6
@@ -90,3 +91,138 @@ jobs:
           framework: terraform
           output_format: cli
           soft_fail: true
+
+  # ── Plan (PR only) ──────────────────────────────────────────────────────────
+  # Runs `terraform plan` across every live directory on each PR push and posts the combined
+  # output as a single, updated PR comment -- so a reviewer sees the actual infrastructure change
+  # without first running deploy-terraform.yml by hand. Read-only (plan, never apply/destroy);
+  # reuses the same Azure login + TF_VAR_* wiring as deploy-terraform.yml, so it needs no secrets
+  # of its own.
+  #
+  # Sequential loop, not a matrix (same reasoning as deploy-terraform.yml): terraform-python/
+  # terraform-managed-services/terraform-aks-app read terraform-core's remote state, so planning
+  # them out of order/in parallel could read a half-applied state. Unlike deploy-terraform.yml, a
+  # failed directory doesn't stop the loop here -- plan is read-only, so showing every directory's
+  # plan (or failure) in one comment is more useful to a reviewer than stopping at the first one;
+  # the job still ends non-zero (red check) if any directory failed.
+  plan:
+    name: Plan every directory (PR preview)
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # Azure OIDC login
+      pull-requests: write # post/update the plan comment
+    env:
+      ARM_USE_OIDC: "true"
+      ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      TF_VAR_automation_only: "true"
+      # Same per-directory variables as deploy-terraform.yml -- see that workflow's comment for
+      # why TF_VAR_* env vars instead of `-var` flags (silently ignored by directories that don't
+      # declare a matching variable, no per-directory case statement needed).
+      TF_VAR_owner: ${{ secrets.AZURE_OWNER }}
+      TF_VAR_resource_group_name: ${{ secrets.AZURE_RG_NAME }}
+      TF_VAR_alert_email: ${{ secrets.AZURE_ALERT_EMAIL }}
+      TF_VAR_trainer_ip_cidr: ${{ secrets.TRAINER_IP_CIDR }}
+      TF_VAR_shared_rg_name: ${{ secrets.AZURE_SHARED_RG_NAME }}
+      TF_VAR_shared_plan_name: ${{ secrets.AZURE_SHARED_PLAN_NAME }}
+      TF_VAR_plan_name: ${{ secrets.AZURE_SHARED_PLAN_NAME }}
+      TF_VAR_cohort: ${{ secrets.AZURE_COHORT }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Azure Login (OIDC)
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Plan each directory
+        id: plan
+        run: |
+          PLAN_FILE="$RUNNER_TEMP/plan.md"
+          echo "### 📋 Terraform plan preview — \`${{ github.event.pull_request.head.sha }}\`" > "$PLAN_FILE"
+          echo "" >> "$PLAN_FILE"
+
+          STATUS=0
+          for dir in terraform-core terraform-python terraform-managed-services terraform-aks-app terraform-shared-aks terraform-shared-plan terraform-prometheus; do
+            echo "::group::$dir · terraform plan"
+            OUT="$(
+              cd "$dir"
+              terraform init -input=false 2>&1
+              terraform plan -input=false -no-color 2>&1
+            )"
+            RC=$?
+            echo "$OUT"
+            echo "::endgroup::"
+
+            {
+              echo "<details><summary>$([ "$RC" -eq 0 ] && echo "✅" || echo "❌") <code>$dir</code></summary>"
+              echo ""
+              echo '```hcl'
+              echo "$OUT"
+              echo '```'
+              echo "</details>"
+              echo ""
+            } >> "$PLAN_FILE"
+            [ "$RC" -eq 0 ] || STATUS=1
+          done
+
+          # GitHub caps a comment body at 65536 bytes -- seven directories' full plan output can
+          # exceed that on a large first-time plan. Truncate defensively rather than let the
+          # comment step fail outright; the full untruncated output is still in the job log/summary.
+          if [ "$(wc -c < "$PLAN_FILE")" -gt 60000 ]; then
+            head -c 60000 "$PLAN_FILE" > "$PLAN_FILE.truncated"
+            echo -e "\n\n> ⚠️ Output truncated (comment size limit) — see the full plan in this run's job summary/logs." >> "$PLAN_FILE.truncated"
+            mv "$PLAN_FILE.truncated" "$PLAN_FILE"
+          fi
+
+          cat "$PLAN_FILE" >> "$GITHUB_STEP_SUMMARY"
+          echo "plan_file=$PLAN_FILE" >> "$GITHUB_OUTPUT"
+          exit $STATUS
+
+      - name: Comment plan on PR
+        if: always()
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const fs = require("fs");
+            const marker = "<!-- terraform-plan-preview -->";
+            const planFile = process.env.PLAN_FILE;
+            const body = marker + "\n" + (fs.existsSync(planFile)
+              ? fs.readFileSync(planFile, "utf8")
+              : "Plan step didn't produce output -- see the job logs.");
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            const existing = comments.find((c) => c.body.startsWith(marker));
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }
+        env:
+          PLAN_FILE: ${{ steps.plan.outputs.plan_file }}
