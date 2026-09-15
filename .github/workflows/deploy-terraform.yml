@@ -35,7 +35,7 @@
 # directories one at a time instead of in parallel.
 # ─────────────────────────────────────────────────────────────────────────────
 name: Terraform Deploy
-run-name: "${{ inputs.action }} · ${{ inputs.directories }} · @${{ github.actor }}"
+run-name: "${{ inputs.action }} · ${{ inputs.directories }} · ${{ inputs.environment }} · @${{ github.actor }}"
 
 on:
   workflow_dispatch:
@@ -63,6 +63,11 @@ on:
           - plan
           - apply
           - destroy
+      environment:
+        description: "Which GitHub Environment's secrets/identity to use (see the job's `environment:` below)"
+        required: true
+        type: environment
+        default: nonprod
 
 permissions:
   id-token: write
@@ -82,6 +87,10 @@ env:
   TF_VAR_owner: ${{ secrets.AZURE_OWNER }}
   TF_VAR_resource_group_name: ${{ secrets.AZURE_RG_NAME }}
   TF_VAR_alert_email: ${{ secrets.AZURE_ALERT_EMAIL }}
+  # terraform-core's own environment tag (variables.tf, default "nonprod" —
+  # left unset here it would silently tag prod resources as nonprod). Wired
+  # from the workflow_dispatch input, not a secret, since it's not sensitive.
+  TF_VAR_environment: ${{ inputs.environment }}
   # terraform-prometheus only.
   TF_VAR_trainer_ip_cidr: ${{ secrets.TRAINER_IP_CIDR }}
   # Shared-cohort naming convention (rg-shared-prf2026 / plan-npr-prf2026 /
@@ -102,6 +111,15 @@ jobs:
   terraform:
     name: Terraform ${{ inputs.action }}
     runs-on: ubuntu-latest
+    # Pins the OIDC subject to repo:<org>/<repo>:environment:<name> (matches the
+    # federated credentials on each identity — sp-prod-alderic for prod, the
+    # original identity for nonprod) and selects which of this environment's
+    # secrets ({AZURE_CLIENT_ID,AZURE_TENANT_ID,AZURE_OWNER,AZURE_RG_NAME}) win
+    # over the repo-level fallback of the same name. nonprod currently has none
+    # of its own — every secrets.* lookup below falls back to the repo-level
+    # value (today's Simplon subscription identity), so this is a no-op for
+    # nonprod until/unless nonprod gets its own environment secrets too.
+    environment: ${{ inputs.environment }}
 
     steps:
       - name: Checkout
@@ -140,7 +158,8 @@ jobs:
         id: run
         run: |
           SUMMARY_FILE="$RUNNER_TEMP/summary.md"
-          echo "## Terraform Deploy — ${{ inputs.action }}" > "$SUMMARY_FILE"
+          echo "## Terraform Deploy — ${{ inputs.action }} (${{ inputs.environment }})" > "$SUMMARY_FILE"
+          echo "- **Environment** : ${{ inputs.environment }}" >> "$SUMMARY_FILE"
           echo "- **Owner**  : ${{ secrets.AZURE_OWNER }}" >> "$SUMMARY_FILE"
           echo "- **Branch** : ${{ github.ref_name }}" >> "$SUMMARY_FILE"
           echo "- **Actor**  : @${{ github.actor }}" >> "$SUMMARY_FILE"
@@ -155,6 +174,26 @@ jobs:
             (
               cd "$dir"
               set -e
+
+              # Isolate prod into its own HCP Terraform workspace, distinct from
+              # the one nonprod has always used. Without this, "prod" (a
+              # DIFFERENT Azure subscription than nonprod's Simplon one — see
+              # variables.tf's environment description, which assumed a single
+              # shared subscription) would init against nonprod's existing state
+              # and try to reconcile resources that don't exist in prod's
+              # subscription at all. Only rewrites backend.tf's workspace name
+              # (never committed — this is a working-copy edit inside the CI
+              # checkout) when it's one of the per-learner ("...-alderic-hoarau")
+              # workspaces; the trainer-shared ones (terraform-shared-plan/-aks,
+              # "...-prf2026") have no per-environment split and are left alone.
+              # Leaves nonprod byte-for-byte unchanged (its own runs never hit
+              # this branch), so this cannot affect nonprod's live state.
+              if [ "${{ inputs.environment }}" = "prod" ] && [ -f backend.tf ] && grep -q 'alderic-hoarau"' backend.tf; then
+                echo "→ prod: redirecting to an isolated HCP Terraform workspace (backend.tf, working copy only)"
+                sed -i -E 's/(name[[:space:]]*=[[:space:]]*"[^"]*alderic-hoarau)(")/\1-prod\2/' backend.tf
+                grep 'name' backend.tf
+              fi
+
               terraform init -input=false
               terraform fmt -check -recursive
               terraform validate
@@ -194,6 +233,15 @@ jobs:
       # someone remembers to paste the new value by hand. This step removes
       # that manual step entirely.
       #
+      # Written to the app repos' ${{ inputs.environment }} ENVIRONMENT secret,
+      # not the repo-level one: nonprod and prod each apply terraform-core
+      # against a different Azure subscription (separate HCP Terraform
+      # workspace, see the sed step above) and so each produces its OWN
+      # ci_app_deploy identity with its OWN client-id. Writing both to the same
+      # repo-level secret would make whichever environment applied most
+      # recently silently clobber the other's app-repo deploys — that's
+      # exactly the bug this used to have before prod existed at all.
+      #
       # gh CLI's own token (GITHUB_TOKEN) only has permissions scoped to *this*
       # repo — writing a secret into another repo needs a PAT with rights on
       # those repos specifically (GH_PAT_APPS, fine-grained, "Secrets: Read
@@ -208,6 +256,6 @@ jobs:
         run: |
           CLIENT_ID=$(terraform -chdir=terraform-core output -raw ci_app_deploy_client_id)
           for repo in azure-quiz-backend azure-quiz-frontend; do
-            echo "Setting AZURE_CLIENT_ID on alderichoarau/$repo ..."
-            gh secret set AZURE_CLIENT_ID --repo "alderichoarau/$repo" --body "$CLIENT_ID"
+            echo "Setting AZURE_CLIENT_ID on alderichoarau/$repo (env: ${{ inputs.environment }}) ..."
+            gh secret set AZURE_CLIENT_ID --repo "alderichoarau/$repo" --env "${{ inputs.environment }}" --body "$CLIENT_ID"
           done
