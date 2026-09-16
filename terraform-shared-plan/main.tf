@@ -27,6 +27,12 @@ locals {
   # apps on one plan) — a personal prod plan hosting a single app doesn't
   # need that, so prod overrides down to B1 unless -var overrides it further.
   plan_sku = var.environment == "prod" ? "B1" : var.plan_sku
+
+  # Basic tier has no real autoscale (Standard S1+ only) -- this is a fixed manual scale-out,
+  # capped at 3 instances for the whole Basic family. Only prod gets multiple instances;
+  # nonprod's shared plan stays at the platform default (1) so the whole cohort isn't billed
+  # for extra instances on a plan they didn't ask to scale.
+  worker_count = var.environment == "prod" ? 2 : null
 }
 
 resource "azurerm_service_plan" "shared" {
@@ -35,6 +41,7 @@ resource "azurerm_service_plan" "shared" {
   location            = var.location
   os_type             = "Linux"
   sku_name            = local.plan_sku
+  worker_count        = local.worker_count
 
   tags = {
     managed_by = "terraform"
