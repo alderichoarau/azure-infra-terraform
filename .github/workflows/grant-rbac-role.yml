@@ -67,6 +67,11 @@ on:
           - ServicePrincipal
           - User
           - Group
+      environment:
+        description: "Which GitHub Environment's subscription/identity to grant the role on"
+        required: true
+        type: environment
+        default: nonprod
 
 permissions:
   id-token: write
@@ -75,6 +80,7 @@ permissions:
 jobs:
   grant:
     runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
     steps:
       - name: Azure Login (OIDC)
         uses: azure/login@v3
