@@ -35,7 +35,7 @@
 # directories one at a time instead of in parallel.
 # ─────────────────────────────────────────────────────────────────────────────
 name: Terraform Deploy
-run-name: "${{ inputs.action }} · ${{ inputs.directories }} · ${{ inputs.environment }} · @${{ github.actor }}"
+run-name: "${{ inputs.action }} · ${{ inputs.directories }} · ${{ inputs.environment }}"
 
 on:
   workflow_dispatch:

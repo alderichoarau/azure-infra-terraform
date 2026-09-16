@@ -7,7 +7,7 @@
 # can't be self-service from a learner's own Terraform.
 # ─────────────────────────────────────────────────────────────────────────────
 name: Bootstrap AKS Namespace
-run-name: "Bootstrap AKS namespace · ${{ inputs.owner }} · @${{ github.actor }}"
+run-name: "Bootstrap AKS namespace · ${{ inputs.owner }}"
 
 on:
   workflow_dispatch:

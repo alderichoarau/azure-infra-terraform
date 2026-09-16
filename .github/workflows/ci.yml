@@ -1,5 +1,5 @@
 name: Terraform CI
-run-name: "CI · fmt · tflint · validate · checkov${{ github.event_name == 'pull_request' && ' · plan' || '' }} · ${{ github.ref_name }} by @${{ github.actor }}"
+run-name: "CI · fmt · tflint · validate · checkov${{ github.event_name == 'pull_request' && ' · plan' || '' }}"
 
 on:
   workflow_dispatch:

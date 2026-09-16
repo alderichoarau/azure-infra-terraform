@@ -11,7 +11,7 @@
 # idempotent) — e.g. to bump the cert-manager version.
 # ─────────────────────────────────────────────────────────────────────────────
 name: Setup cert-manager (Let's Encrypt)
-run-name: "Setup cert-manager · ${{ inputs.environment }} · @${{ github.actor }}"
+run-name: "Setup cert-manager · ${{ inputs.environment }}"
 
 on:
   workflow_dispatch:

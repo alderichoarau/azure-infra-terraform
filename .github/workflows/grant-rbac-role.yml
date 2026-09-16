@@ -20,7 +20,7 @@
 # roles to others.
 # ─────────────────────────────────────────────────────────────────────────────
 name: Grant RBAC Role
-run-name: "Grant ${{ inputs.role }} on ${{ inputs.resource_group }} · to ${{ inputs.object_id }} · @${{ github.actor }}"
+run-name: "Grant ${{ inputs.role }} on ${{ inputs.resource_group }} · to ${{ inputs.object_id }}"
 
 on:
   workflow_dispatch:
