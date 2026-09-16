@@ -26,13 +26,10 @@ on:
           - terraform-core
           - terraform-shared-plan
           - terraform-shared-aks
-          - terraform-python
           - terraform-managed-services
           - terraform-aks-app
           - terraform-prometheus
-          - terraform-core terraform-shared-plan terraform-python
-          - terraform-core terraform-shared-plan terraform-managed-services
-          - terraform-core terraform-shared-aks terraform-aks-app
+          - terraform-python
       action:
         description: "Action to execute on each directory"
         required: true
