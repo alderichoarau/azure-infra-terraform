@@ -27,12 +27,8 @@ locals {
     var.tags
   )
 
-  # See ../terraform-core/main.tf's identical locals for the full rationale —
-  # nonprod and prod are two separate Azure subscriptions under the same
-  # var.owner, so any globally-unique Azure name (Key Vault, Postgres
-  # Flexible Server, Redis, App Service — anything forming part of a public
-  # DNS name) needs this to avoid colliding with nonprod's already-live one.
-  # Empty for nonprod: its resource names stay byte-for-byte unchanged.
+  # Same as ../terraform-core/main.tf's env_suffix — avoids globally-unique
+  # Azure name collisions between the nonprod/prod subscriptions.
   env_suffix         = var.environment == "prod" ? "-prod" : ""
   env_suffix_compact = var.environment == "prod" ? "prod" : ""
 }

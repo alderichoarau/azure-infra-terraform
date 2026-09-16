@@ -74,6 +74,7 @@ No modules.
 
 | Name | Description | Type | Default | Required |
 | ---- | ----------- | ---- | ------- | :------: |
+| environment | n/a | `string` | `"nonprod"` | no |
 | location | n/a | `string` | `"francecentral"` | no |
 | plan\_name | Name of the shared App Service Plan. Every per-student directory that reads this plan (../terraform-python, ../terraform-managed-services) sets its own shared\_plan\_name var to this same value — keep both in sync if you ever rename it. No default on purpose — comes from the AZURE\_SHARED\_PLAN\_NAME GitHub secret (TF\_VAR\_plan\_name) or an explicit -var locally. | `string` | n/a | yes |
 | plan\_sku | SKU for the shared App Service Plan. B3: sized to comfortably host every learner's Python App Service + Function App + Java Web App on one pool of compute (all three are Linux app stacks — an App Service Plan is just capacity, Azure isolates each app within it regardless of runtime). | `string` | `"B3"` | no |

@@ -22,12 +22,19 @@ data "azurerm_resource_group" "shared" {
   name = var.shared_rg_name
 }
 
+locals {
+  # var.plan_sku's default (B3) is sized for the real cohort (many learners'
+  # apps on one plan) — a personal prod plan hosting a single app doesn't
+  # need that, so prod overrides down to B1 unless -var overrides it further.
+  plan_sku = var.environment == "prod" ? "B1" : var.plan_sku
+}
+
 resource "azurerm_service_plan" "shared" {
   name                = var.plan_name
   resource_group_name = data.azurerm_resource_group.shared.name
   location            = var.location
   os_type             = "Linux"
-  sku_name            = var.plan_sku
+  sku_name            = local.plan_sku
 
   tags = {
     managed_by = "terraform"

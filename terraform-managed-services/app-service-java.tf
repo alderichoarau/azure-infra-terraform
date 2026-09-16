@@ -50,8 +50,7 @@ resource "azurerm_subnet" "java_app" {
 # ──────────────────────────────────────────────────────────────────────────────
 
 resource "azurerm_linux_web_app" "java_app" {
-  # Globally-unique Azure name (*.azurewebsites.net) — see local.env_suffix
-  # (main.tf). nonprod unchanged, prod gets "-prod" appended.
+  # Globally-unique name — see main.tf's env_suffix.
   name                = "app-java-${var.owner}${local.env_suffix}-tf"
   resource_group_name = data.azurerm_resource_group.rg.name
   location            = var.location

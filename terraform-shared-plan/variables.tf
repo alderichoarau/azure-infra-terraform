@@ -18,3 +18,13 @@ variable "plan_sku" {
   type        = string
   default     = "B3"
 }
+
+variable "environment" {
+  type    = string
+  default = "nonprod"
+
+  validation {
+    condition     = contains(["nonprod", "prod"], var.environment)
+    error_message = "environment must be either \"nonprod\" or \"prod\"."
+  }
+}
