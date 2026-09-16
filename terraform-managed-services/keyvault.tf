@@ -31,7 +31,10 @@
 # ──────────────────────────────────────────────────────────────────────────────
 
 resource "azurerm_key_vault" "app" {
-  name                = "kv-${replace(var.owner, "-", "")}-tf"
+  # Globally-unique Azure name (max 24 chars) — see local.env_suffix
+  # (main.tf). nonprod: "kv-alderichoarau-tf" (19 chars, unchanged). prod:
+  # "kv-alderichoarau-prod-tf" (24 chars — exactly at the limit).
+  name                = "kv-${replace(var.owner, "-", "")}${local.env_suffix}-tf"
   resource_group_name = data.azurerm_resource_group.rg.name
   location            = var.location
   tenant_id           = data.azurerm_client_config.current.tenant_id

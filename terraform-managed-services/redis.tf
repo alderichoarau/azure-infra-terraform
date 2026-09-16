@@ -20,7 +20,9 @@
 # ──────────────────────────────────────────────────────────────────────────────
 
 resource "azurerm_managed_redis" "app" {
-  name                = "redis-${var.owner}-tf"
+  # Globally-unique Azure name (*.redis.azure.net) — see local.env_suffix
+  # (main.tf). nonprod unchanged, prod gets "-prod" appended.
+  name                = "redis-${var.owner}${local.env_suffix}-tf"
   resource_group_name = data.azurerm_resource_group.rg.name
   location            = var.location
   sku_name            = var.redis_sku_name

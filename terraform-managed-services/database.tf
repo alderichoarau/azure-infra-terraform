@@ -89,7 +89,9 @@ resource "random_password" "postgres_admin" {
 }
 
 resource "azurerm_postgresql_flexible_server" "app" {
-  name                = "psql-${var.owner}-tf"
+  # Globally-unique Azure name (*.postgres.database.azure.com) — see
+  # local.env_suffix (main.tf). nonprod unchanged, prod gets "-prod" appended.
+  name                = "psql-${var.owner}${local.env_suffix}-tf"
   resource_group_name = data.azurerm_resource_group.rg.name
   location            = var.location
   version             = var.postgres_version

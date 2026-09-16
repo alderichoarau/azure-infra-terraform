@@ -50,7 +50,9 @@ resource "azurerm_subnet" "java_app" {
 # ──────────────────────────────────────────────────────────────────────────────
 
 resource "azurerm_linux_web_app" "java_app" {
-  name                = "app-java-${var.owner}-tf"
+  # Globally-unique Azure name (*.azurewebsites.net) — see local.env_suffix
+  # (main.tf). nonprod unchanged, prod gets "-prod" appended.
+  name                = "app-java-${var.owner}${local.env_suffix}-tf"
   resource_group_name = data.azurerm_resource_group.rg.name
   location            = var.location
   service_plan_id     = data.azurerm_service_plan.shared.id
@@ -125,18 +127,19 @@ resource "azurerm_linux_web_app" "java_app" {
     # reach a local Azurite that doesn't exist. Explicit > implicit either way.
     SPRING_PROFILES_ACTIVE = "prod"
 
-    KEY_VAULT_URI              = azurerm_key_vault.app.vault_uri
-    SPRING_DATASOURCE_URL      = "jdbc:postgresql://${azurerm_postgresql_flexible_server.app.fqdn}:5432/${azurerm_postgresql_flexible_server_database.app.name}?sslmode=require"
-    SPRING_DATASOURCE_USERNAME = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault_secret.postgres_username.versionless_id})"
-    SPRING_DATASOURCE_PASSWORD = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault_secret.postgres_password.versionless_id})"
-    REDIS_HOSTNAME             = azurerm_managed_redis.app.hostname
-    REDIS_PORT                 = azurerm_managed_redis.app.default_database[0].port
-    REDIS_PASSWORD             = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault_secret.redis_access_key.versionless_id})"
-    REDIS_SSL_ENABLED          = "true" # Managed Redis default_database.client_protocol defaults to "Encrypted" (TLS) — see redis.tf
-    BACKEND_API_KEY            = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault_secret.backend_api_key.versionless_id})"
-    STORAGE_ACCOUNT_NAME       = data.terraform_remote_state.core.outputs.storage_account_name
-    STORAGE_CONTAINER_NAME     = azurerm_storage_container.java_uploads.name
-    APP_CORS_ALLOWED_ORIGINS   = "https://${azurerm_static_web_app.angular_frontend.default_host_name}"
+    KEY_VAULT_URI                  = azurerm_key_vault.app.vault_uri
+    SPRING_DATASOURCE_URL          = "jdbc:postgresql://${azurerm_postgresql_flexible_server.app.fqdn}:5432/${azurerm_postgresql_flexible_server_database.app.name}?sslmode=require"
+    SPRING_DATASOURCE_USERNAME     = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault_secret.postgres_username.versionless_id})"
+    SPRING_DATASOURCE_PASSWORD     = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault_secret.postgres_password.versionless_id})"
+    REDIS_HOSTNAME                 = azurerm_managed_redis.app.hostname
+    REDIS_PORT                     = azurerm_managed_redis.app.default_database[0].port
+    REDIS_PASSWORD                 = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault_secret.redis_access_key.versionless_id})"
+    REDIS_SSL_ENABLED              = "true" # Managed Redis default_database.client_protocol defaults to "Encrypted" (TLS) — see redis.tf
+    BACKEND_API_KEY                = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault_secret.backend_api_key.versionless_id})"
+    STORAGE_ACCOUNT_NAME           = data.terraform_remote_state.core.outputs.storage_account_name
+    STORAGE_CONTAINER_NAME         = azurerm_storage_container.java_uploads.name
+    QUESTION_IMAGES_CONTAINER_NAME = azurerm_storage_container.question_images.name
+    APP_CORS_ALLOWED_ORIGINS       = "https://${azurerm_static_web_app.angular_frontend.default_host_name}"
   }
 
   # component tag: lets the backend app repo's CI find this exact Web App by

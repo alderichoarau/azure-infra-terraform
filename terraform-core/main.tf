@@ -22,6 +22,25 @@ locals {
     },
     var.tags
   )
+
+  # Only for resources whose Azure name must be GLOBALLY unique (Storage
+  # Account, Key Vault, ACR, Postgres Flexible Server, Redis, App Service —
+  # anything that becomes part of a public DNS name like
+  # *.blob.core.windows.net). nonprod/prod now run in two different Azure
+  # subscriptions under the same var.owner (see variables.tf's environment
+  # description — it assumed one shared subscription, this repo now also
+  # supports a fully separate prod subscription), so a name derived from
+  # owner alone collides the moment both environments try to create it — hit
+  # live on storage.tf's "stalderichoarautf": StorageAccountAlreadyTaken,
+  # even though nonprod and prod are two completely separate subscriptions
+  # with fully isolated Terraform state.
+  #
+  # Empty for nonprod so its already-live resource names are byte-for-byte
+  # unchanged (no forced recreation of anything that already exists).
+  # RG/subscription-scoped names (VNet, this identity, etc.) don't need this
+  # -- they can't collide across subscriptions in the first place.
+  env_suffix         = var.environment == "prod" ? "-prod" : ""
+  env_suffix_compact = var.environment == "prod" ? "prod" : ""
 }
 
 # Resource Group pre-created by the trainer (never managed by Terraform)

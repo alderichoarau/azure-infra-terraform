@@ -25,7 +25,12 @@ terraform {
     organization = "alderic-hoarau"
 
     workspaces {
-      name = "azure-shared-plan-prf2026"
+      # Explicit "-nonprod" (not the old cohort-named "azure-shared-plan-prf2026" —
+      # renamed in HCP Terraform, state preserved) since this directory can now
+      # also be applied for a personal "prod" environment, not only the
+      # Simplon cohort — see deploy-terraform.yml's workspace-isolation step,
+      # which swaps this suffix for "-prod" rather than appending onto it.
+      name = "azure-shared-plan-nonprod"
     }
   }
 }

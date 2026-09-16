@@ -183,15 +183,73 @@ jobs:
               # and try to reconcile resources that don't exist in prod's
               # subscription at all. Only rewrites backend.tf's workspace name
               # (never committed — this is a working-copy edit inside the CI
-              # checkout) when it's one of the per-learner ("...-alderic-hoarau")
-              # workspaces; the trainer-shared ones (terraform-shared-plan/-aks,
-              # "...-prf2026") have no per-environment split and are left alone.
-              # Leaves nonprod byte-for-byte unchanged (its own runs never hit
-              # this branch), so this cannot affect nonprod's live state.
-              if [ "${{ inputs.environment }}" = "prod" ] && [ -f backend.tf ] && grep -q 'alderic-hoarau"' backend.tf; then
+              # checkout).
+              #
+              # Applies to EVERY directory run under prod, including the
+              # trainer-shared ones (terraform-shared-plan/-aks, normally
+              # "...-prf2026") — not just the per-learner "...-alderic-hoarau"
+              # ones. The moment any of these directories is applied under a
+              # prod identity/subscription that isn't the cohort's own, its
+              # state is no longer meaningfully "the shared cohort state"
+              # regardless of naming convention; leaving it unredirected would
+              # point a personal prod apply at the real Simplon cohort's live
+              # shared-plan/shared-AKS state, not a state of its own — a much
+              # worse outcome than the per-learner case this was first written
+              # for. Leaves nonprod byte-for-byte unchanged (its own runs never
+              # hit this branch), so this cannot affect nonprod's live state
+              # or the real cohort's shared one.
+              if [ "${{ inputs.environment }}" = "prod" ] && [ -f backend.tf ] && grep -q 'workspaces {' backend.tf; then
                 echo "→ prod: redirecting to an isolated HCP Terraform workspace (backend.tf, working copy only)"
-                sed -i -E 's/(name[[:space:]]*=[[:space:]]*"[^"]*alderic-hoarau)(")/\1-prod\2/' backend.tf
+                if grep -qE 'name[[:space:]]*=[[:space:]]*"[^"]*-nonprod"' backend.tf; then
+                  # Explicit "-nonprod" base name (terraform-shared-plan/-aks) —
+                  # swap the suffix instead of appending, so this reads
+                  # "...-prod" rather than the nonsensical "...-nonprod-prod".
+                  sed -i -E 's/(name[[:space:]]*=[[:space:]]*"[^"]*)-nonprod(")/\1-prod\2/' backend.tf
+                else
+                  # No explicit env marker in the base name (every per-learner
+                  # directory) -- nonprod's own name has always been this bare
+                  # string, so just append "-prod" for prod.
+                  sed -i -E 's/(name[[:space:]]*=[[:space:]]*"[^"]+)(")/\1-prod\2/' backend.tf
+                fi
                 grep 'name' backend.tf
+              fi
+
+              # A brand-new HCP Terraform workspace (like the "...-prod" one
+              # just created above the first time this runs) defaults to
+              # Execution Mode "Remote" — plan/apply then run on HCP
+              # Terraform's own worker, which has no Azure CLI installed, and
+              # fails with "could not configure AzureCli Authorizer: ...
+              # exec: \"az\": executable file not found in $PATH" (hit
+              # live setting up prod; backend.tf's own comment already
+              # predicted this exact error for any new workspace). "Local"
+              # mode runs plan/apply right here on the GitHub Actions runner
+              # instead — which already has az/OIDC configured — with HCP
+              # Terraform only holding state and run history. Idempotent:
+              # GETs the workspace, PATCHes it to Local if found, POSTs a new
+              # one already in Local mode if not (so this never depends on
+              # `terraform init` having created it first). Applies to every
+              # directory with a `cloud` block, not just prod's — the same
+              # trap awaits any future *new* workspace (e.g. a new learner's
+              # first nonprod apply), not only this one.
+              if [ -f backend.tf ] && grep -q 'workspaces {' backend.tf; then
+                TF_ORG=$(grep -oE 'organization[[:space:]]*=[[:space:]]*"[^"]+"' backend.tf | sed -E 's/.*"([^"]+)".*/\1/')
+                TF_WS=$(grep -oE 'name[[:space:]]*=[[:space:]]*"[^"]+"' backend.tf | sed -E 's/.*"([^"]+)".*/\1/')
+                echo "→ Ensuring HCP Terraform workspace '$TF_WS' (org: $TF_ORG) is set to Local execution mode..."
+                WS_ID=$(curl -s --header "Authorization: Bearer $TF_TOKEN_app_terraform_io" \
+                  "https://app.terraform.io/api/v2/organizations/$TF_ORG/workspaces/$TF_WS" | jq -r '.data.id // empty')
+                if [ -n "$WS_ID" ]; then
+                  curl -s --header "Authorization: Bearer $TF_TOKEN_app_terraform_io" \
+                    --header "Content-Type: application/vnd.api+json" --request PATCH \
+                    --data '{"data":{"type":"workspaces","attributes":{"execution-mode":"local"}}}' \
+                    "https://app.terraform.io/api/v2/workspaces/$WS_ID" > /dev/null
+                  echo "  existing workspace ($WS_ID) confirmed Local."
+                else
+                  curl -s --header "Authorization: Bearer $TF_TOKEN_app_terraform_io" \
+                    --header "Content-Type: application/vnd.api+json" --request POST \
+                    --data "{\"data\":{\"type\":\"workspaces\",\"attributes\":{\"name\":\"$TF_WS\",\"execution-mode\":\"local\"}}}" \
+                    "https://app.terraform.io/api/v2/organizations/$TF_ORG/workspaces" > /dev/null
+                  echo "  created '$TF_WS' already in Local mode."
+                fi
               fi
 
               terraform init -input=false
