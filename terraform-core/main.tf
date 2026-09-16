@@ -23,11 +23,12 @@ locals {
     var.tags
   )
 
-  # Suffix for globally-unique Azure names only (Storage Account, Key Vault...) —
-  # nonprod/prod are separate subscriptions but share var.owner, so these would
-  # otherwise collide. Empty for nonprod to keep its live resource names unchanged.
-  env_suffix         = var.environment == "prod" ? "-prod" : ""
-  env_suffix_compact = var.environment == "prod" ? "prod" : ""
+  # Resource-name suffix: nonprod keeps its exact current names (live cohort
+  # resources, never renamed). prod adds app name + environment to every
+  # resource. resource_suffix_compact drops owner for the 24-char-limited
+  # resources (Key Vault, Storage) — prod is single-tenant, doesn't need it.
+  resource_suffix         = var.environment == "prod" ? "${var.owner}-${var.app_name}-prod" : var.owner
+  resource_suffix_compact = var.environment == "prod" ? "${var.app_name}prod" : replace(var.owner, "-", "")
 }
 
 # Resource Group pre-created by the trainer (never managed by Terraform)

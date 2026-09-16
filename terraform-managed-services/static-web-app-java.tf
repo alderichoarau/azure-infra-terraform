@@ -10,7 +10,8 @@
 # ──────────────────────────────────────────────────────────────────────────────
 
 resource "azurerm_static_web_app" "angular_frontend" {
-  name                = "stapp-angular-${var.owner}-tf"
+  # Globally-unique name — see main.tf's resource_suffix.
+  name                = "stapp-angular-${local.resource_suffix}-tf"
   resource_group_name = data.azurerm_resource_group.rg.name
   location            = "westeurope"
   sku_tier            = "Free"

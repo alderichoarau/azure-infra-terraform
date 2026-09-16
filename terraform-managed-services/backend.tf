@@ -14,7 +14,7 @@ terraform {
     organization = "alderic-hoarau"
 
     workspaces {
-      name = "azure-managed-services-alderic-hoarau"
+      name = "azure-quiz-managed-services-alderic-hoarau-nonprod"
     }
   }
 }

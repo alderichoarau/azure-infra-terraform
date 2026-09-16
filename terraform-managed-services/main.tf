@@ -27,10 +27,9 @@ locals {
     var.tags
   )
 
-  # Same as ../terraform-core/main.tf's env_suffix — avoids globally-unique
-  # Azure name collisions between the nonprod/prod subscriptions.
-  env_suffix         = var.environment == "prod" ? "-prod" : ""
-  env_suffix_compact = var.environment == "prod" ? "prod" : ""
+  # Same as ../terraform-core/main.tf's resource_suffix(_compact).
+  resource_suffix         = var.environment == "prod" ? "${var.owner}-${var.app_name}-prod" : var.owner
+  resource_suffix_compact = var.environment == "prod" ? "${var.app_name}prod" : replace(var.owner, "-", "")
 }
 
 # Resource Group pre-created by the trainer (never managed by Terraform)

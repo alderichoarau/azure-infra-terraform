@@ -3,7 +3,7 @@ module "network" {
   source  = "app.terraform.io/alderic-hoarau/network/azurerm"
   version = "~> 1.0"
 
-  name                = "${var.owner}-tf"
+  name                = "${local.resource_suffix}-tf"
   resource_group_name = data.azurerm_resource_group.rg.name
   location            = var.location
   tags                = local.tags

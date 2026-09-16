@@ -21,7 +21,7 @@
 # ──────────────────────────────────────────────────────────────────────────────
 
 resource "azurerm_storage_container" "java_uploads" {
-  name                  = "java-uploads-${var.owner}"
+  name                  = "java-uploads-${local.resource_suffix}"
   storage_account_id    = data.terraform_remote_state.core.outputs.storage_account_id
   container_access_type = "private"
 }
@@ -38,7 +38,7 @@ resource "azurerm_role_assignment" "backend_storage_blob_contributor" {
 # not left to the app's createIfNotExists() — a role assignment can only scope to a
 # container that already exists, so the backend would 403 creating it at runtime.
 resource "azurerm_storage_container" "question_images" {
-  name                  = "question-images-${var.owner}"
+  name                  = "question-images-${local.resource_suffix}"
   storage_account_id    = data.terraform_remote_state.core.outputs.storage_account_id
   container_access_type = "private"
 }

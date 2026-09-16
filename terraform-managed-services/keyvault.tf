@@ -31,8 +31,8 @@
 # ──────────────────────────────────────────────────────────────────────────────
 
 resource "azurerm_key_vault" "app" {
-  # 24-char limit — prod's suffixed name lands exactly on it, don't extend further.
-  name                = "kv-${replace(var.owner, "-", "")}${local.env_suffix}-tf"
+  # 24-char limit — see local.resource_suffix_compact (main.tf)
+  name                = "kv-${local.resource_suffix_compact}-tf"
   resource_group_name = data.azurerm_resource_group.rg.name
   location            = var.location
   tenant_id           = data.azurerm_client_config.current.tenant_id

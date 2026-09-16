@@ -4,7 +4,7 @@
 #     backend = "remote"
 #     config = {
 #       organization = "alderic-hoarau"
-#       workspaces   = { name = var.core_workspace_name }  # default "azure-core-alderic-hoarau"
+#       workspaces   = { name = var.core_workspace_name }  # default "azure-quiz-core-alderic-hoarau-nonprod"
 #     }
 #   }
 # then referenced as data.terraform_remote_state.core.outputs.<name>.

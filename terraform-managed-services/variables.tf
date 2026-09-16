@@ -30,6 +30,12 @@ variable "environment" {
   }
 }
 
+variable "app_name" {
+  description = "Short app identifier used in prod resource names alongside owner/environment (e.g. \"quiz\")."
+  type        = string
+  default     = "quiz"
+}
+
 variable "tags" {
   description = "Additional tags to merge with default tags"
   type        = map(string)
@@ -49,7 +55,7 @@ variable "shared_plan_name" {
 variable "core_workspace_name" {
   description = "HCP Terraform Cloud workspace name of ../terraform-core, read via terraform_remote_state for the VNet/Storage Account/ci_app_deploy identity this track's resources attach to."
   type        = string
-  default     = "azure-core-alderic-hoarau"
+  default     = "azure-quiz-core-alderic-hoarau-nonprod"
 }
 
 variable "postgres_sku_name" {

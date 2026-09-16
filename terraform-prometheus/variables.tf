@@ -31,7 +31,7 @@ variable "environment" {
 variable "core_workspace_name" {
   description = "HCP Terraform Cloud workspace name of ../terraform-core -- read via terraform_remote_state (main.tf) for the VNet name this stack's dedicated subnet attaches to."
   type        = string
-  default     = "azure-core-alderic-hoarau"
+  default     = "azure-quiz-core-alderic-hoarau-nonprod"
 }
 
 variable "python_workspace_name" {

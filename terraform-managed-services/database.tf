@@ -89,8 +89,8 @@ resource "random_password" "postgres_admin" {
 }
 
 resource "azurerm_postgresql_flexible_server" "app" {
-  # Globally-unique name — see main.tf's env_suffix.
-  name                = "psql-${var.owner}${local.env_suffix}-tf"
+  # Globally-unique name — see main.tf's resource_suffix.
+  name                = "psql-${local.resource_suffix}-tf"
   resource_group_name = data.azurerm_resource_group.rg.name
   location            = var.location
   version             = var.postgres_version

@@ -90,7 +90,7 @@ No modules.
 | Name | Description | Type | Default | Required |
 | ---- | ----------- | ---- | ------- | :------: |
 | automation\_only | Guard against accidental local apply/destroy -- set to true only by the CI pipeline (TF\_VAR\_automation\_only). | `bool` | n/a | yes |
-| core\_workspace\_name | HCP Terraform Cloud workspace name of ../terraform-core -- read via terraform\_remote\_state (main.tf) for the VNet name this stack's dedicated subnet attaches to. | `string` | `"azure-core-alderic-hoarau"` | no |
+| core\_workspace\_name | HCP Terraform Cloud workspace name of ../terraform-core -- read via terraform\_remote\_state (main.tf) for the VNet name this stack's dedicated subnet attaches to. | `string` | `"azure-quiz-core-alderic-hoarau-nonprod"` | no |
 | environment | n/a | `string` | `"nonprod"` | no |
 | location | n/a | `string` | `"francecentral"` | no |
 | owner | Learner identifier -- must match ../terraform-core's var.owner exactly, both for consistent resource naming and because that's whose Resource Group this stack deploys into. | `string` | n/a | yes |

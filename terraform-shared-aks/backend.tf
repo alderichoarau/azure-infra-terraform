@@ -26,7 +26,7 @@ terraform {
     organization = "alderic-hoarau"
 
     workspaces {
-      name = "azure-shared-aks-prf2026"
+      name = "azure-shared-aks-nonprod"
     }
   }
 }

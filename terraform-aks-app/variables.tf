@@ -49,7 +49,7 @@ variable "cohort" {
 variable "core_workspace_name" {
   description = "HCP Terraform Cloud workspace name of ../terraform-core, read via terraform_remote_state for the ci_app_deploy identity that needs AcrPush on this track's ACR."
   type        = string
-  default     = "azure-core-alderic-hoarau"
+  default     = "azure-quiz-core-alderic-hoarau-nonprod"
 }
 
 # tflint-ignore: terraform_unused_declarations # only referenced in its own validation block below, never consumed by a resource

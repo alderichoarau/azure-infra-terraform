@@ -49,7 +49,7 @@ variable "shared_plan_name" {
 variable "core_workspace_name" {
   description = "HCP Terraform Cloud workspace name of ../terraform-core, read via terraform_remote_state for the VNet/Storage Account this track's resources attach to."
   type        = string
-  default     = "azure-core-alderic-hoarau"
+  default     = "azure-quiz-core-alderic-hoarau-nonprod"
 }
 
 variable "alert_email" {

@@ -1,38 +1,16 @@
 # ─────────────────────────────────────────────────────────────────────────────
-# The single workflow for every Terraform directory in this repo — pick a
-# directory (or a pre-curated ordered combo) from a dropdown, pick one action
-# (plan/apply/destroy), and it runs that action on each directory in the
-# combo, in order. Replaces what used to be one workflow per directory
-# (terraform-core.yml, terraform-python.yml, terraform-managed-services.yml,
-# terraform-aks-app.yml, terraform-shared-aks.yml, terraform-shared-plan.yml —
-# kept on disk as *.yml.superseded, inert since GitHub Actions only picks up
-# *.yml/*.yaml directly, purely for reference) — one file to maintain instead
-# of six near-identical copies.
+# Single workflow for every Terraform directory — pick a directory (or a
+# curated combo), an action (plan/apply/destroy), it runs in order. Replaces
+# one workflow per directory (old ones kept as *.yml.superseded, inert).
 #
-# `directories` is a `choice` input, not free-text `string`: GitHub Actions'
-# `choice` type is single-select only, it has no native multi-select/checkbox
-# UI — so instead of a free-text field where a typo silently produces an
-# empty or wrong run, the dropdown offers every individual directory PLUS the
-# handful of ordered multi-directory combos that actually make sense given
-# the dependency order (terraform-core first, see the root README's directory
-# table). Under the hood each option is still just a space-separated string,
-# so the bash loop below doesn't know or care whether it came from a single-
-# or multi-directory choice. Add a new combo to the `options` list below if
-# you find yourself needing one that isn't there.
+# `directories` is a fixed `choice` list, not free-text — avoids typos.
+# Options include both single directories and dependency-ordered combos.
 #
-# Per-directory variables are passed as TF_VAR_* environment variables, not
-# `-var` CLI flags: Terraform silently ignores a TF_VAR_x that doesn't match
-# any variable a given directory declares, so the same env block works
-# unmodified whether the directory in question is a per-student track (needs
-# owner/resource_group_name), the Prometheus stack (also needs
-# trainer_ip_cidr), or a trainer-side shared directory (needs neither) —
-# no per-directory case statement required, unlike the old `-var=...` workflows.
+# Variables are passed as TF_VAR_* env vars — Terraform ignores ones a
+# directory doesn't declare, so one env block covers every directory.
 #
-# Sequential, not a matrix: a matrix's jobs run in parallel by default, which
-# would race terraform-python/terraform-managed-services/terraform-aks-app
-# against terraform-core before its state exists. A plain bash loop in one
-# job keeps the ordering the caller specified, at the cost of running
-# directories one at a time instead of in parallel.
+# Sequential, not a matrix: terraform-core must apply before
+# python/managed-services/aks-app read its state; a matrix would race them.
 # ─────────────────────────────────────────────────────────────────────────────
 name: Terraform Deploy
 run-name: "${{ inputs.action }} · ${{ inputs.directories }} · ${{ inputs.environment }}"
@@ -81,22 +59,16 @@ env:
   ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
   TF_TOKEN_app_terraform_io: ${{ secrets.TF_API_TOKEN }}
   TF_VAR_automation_only: "true"
-  # Per-student track vars (terraform-core/python/managed-services/aks-app) —
-  # ignored by directories that don't declare a matching variable, e.g. the
-  # trainer-side terraform-shared-aks/terraform-shared-plan.
+  # Ignored by directories that don't declare a matching variable.
   TF_VAR_owner: ${{ secrets.AZURE_OWNER }}
   TF_VAR_resource_group_name: ${{ secrets.AZURE_RG_NAME }}
   TF_VAR_alert_email: ${{ secrets.AZURE_ALERT_EMAIL }}
-  # terraform-core's own environment tag (variables.tf, default "nonprod" —
-  # left unset here it would silently tag prod resources as nonprod). Wired
-  # from the workflow_dispatch input, not a secret, since it's not sensitive.
+  TF_VAR_app_name: "quiz"
+  # Unset, var.environment would default to "nonprod" regardless of target.
   TF_VAR_environment: ${{ inputs.environment }}
-  # managed-services/python/aks-app/prometheus all read terraform-core's state
-  # via this same variable, defaulting to nonprod's workspace name — without
-  # this override, a prod run would read nonprod's outputs (wrong storage
-  # account, wrong RG) while creating resources under prod's credentials.
-  # Must match the workspace-isolation step's naming below.
-  TF_VAR_core_workspace_name: ${{ inputs.environment == 'prod' && 'azure-core-alderic-hoarau-prod' || 'azure-core-alderic-hoarau' }}
+  # Without this, a prod run would read nonprod's remote state (wrong
+  # storage/RG) — must match the workspace-isolation step's naming below.
+  TF_VAR_core_workspace_name: ${{ inputs.environment == 'prod' && 'azure-quiz-core-alderic-hoarau-prod' || 'azure-quiz-core-alderic-hoarau-nonprod' }}
   # terraform-prometheus only.
   TF_VAR_trainer_ip_cidr: ${{ secrets.TRAINER_IP_CIDR }}
   # Shared-cohort naming convention (rg-shared-prf2026 / plan-npr-prf2026 /
@@ -117,14 +89,9 @@ jobs:
   terraform:
     name: Terraform ${{ inputs.action }}
     runs-on: ubuntu-latest
-    # Pins the OIDC subject to repo:<org>/<repo>:environment:<name> (matches the
-    # federated credentials on each identity — sp-prod-alderic for prod, the
-    # original identity for nonprod) and selects which of this environment's
-    # secrets ({AZURE_CLIENT_ID,AZURE_TENANT_ID,AZURE_OWNER,AZURE_RG_NAME}) win
-    # over the repo-level fallback of the same name. nonprod currently has none
-    # of its own — every secrets.* lookup below falls back to the repo-level
-    # value (today's Simplon subscription identity), so this is a no-op for
-    # nonprod until/unless nonprod gets its own environment secrets too.
+    # Pins the OIDC subject and selects this environment's secrets over the
+    # repo-level fallback (nonprod has none of its own yet, so it still falls
+    # back to the repo-level ones).
     environment: ${{ inputs.environment }}
 
     steps:
@@ -181,62 +148,28 @@ jobs:
               cd "$dir"
               set -e
 
-              # Isolate prod into its own HCP Terraform workspace, distinct from
-              # the one nonprod has always used. Without this, "prod" (a
-              # DIFFERENT Azure subscription than nonprod's Simplon one — see
-              # variables.tf's environment description, which assumed a single
-              # shared subscription) would init against nonprod's existing state
-              # and try to reconcile resources that don't exist in prod's
-              # subscription at all. Only rewrites backend.tf's workspace name
-              # (never committed — this is a working-copy edit inside the CI
-              # checkout).
-              #
-              # Applies to EVERY directory run under prod, including the
-              # trainer-shared ones (terraform-shared-plan/-aks, normally
-              # "...-prf2026") — not just the per-learner "...-alderic-hoarau"
-              # ones. The moment any of these directories is applied under a
-              # prod identity/subscription that isn't the cohort's own, its
-              # state is no longer meaningfully "the shared cohort state"
-              # regardless of naming convention; leaving it unredirected would
-              # point a personal prod apply at the real Simplon cohort's live
-              # shared-plan/shared-AKS state, not a state of its own — a much
-              # worse outcome than the per-learner case this was first written
-              # for. Leaves nonprod byte-for-byte unchanged (its own runs never
-              # hit this branch), so this cannot affect nonprod's live state
-              # or the real cohort's shared one.
+              # Redirect prod to its own HCP Terraform workspace (nonprod and
+              # prod are separate Azure subscriptions) so it never reads or
+              # writes nonprod's state — applies to every directory, including
+              # the trainer-shared ones, since their state stops being "the
+              # cohort's" the moment a personal prod apply touches it.
+              # Rewrites backend.tf in the checkout only, never committed.
               if [ "${{ inputs.environment }}" = "prod" ] && [ -f backend.tf ] && grep -q 'workspaces {' backend.tf; then
                 echo "→ prod: redirecting to an isolated HCP Terraform workspace (backend.tf, working copy only)"
                 if grep -qE 'name[[:space:]]*=[[:space:]]*"[^"]*-nonprod"' backend.tf; then
-                  # Explicit "-nonprod" base name (terraform-shared-plan/-aks) —
-                  # swap the suffix instead of appending, so this reads
-                  # "...-prod" rather than the nonsensical "...-nonprod-prod".
+                  # Swap "-nonprod" for "-prod" instead of appending, to avoid "...-nonprod-prod".
                   sed -i -E 's/(name[[:space:]]*=[[:space:]]*"[^"]*)-nonprod(")/\1-prod\2/' backend.tf
                 else
-                  # No explicit env marker in the base name (every per-learner
-                  # directory) -- nonprod's own name has always been this bare
-                  # string, so just append "-prod" for prod.
                   sed -i -E 's/(name[[:space:]]*=[[:space:]]*"[^"]+)(")/\1-prod\2/' backend.tf
                 fi
                 grep 'name' backend.tf
               fi
 
-              # A brand-new HCP Terraform workspace (like the "...-prod" one
-              # just created above the first time this runs) defaults to
-              # Execution Mode "Remote" — plan/apply then run on HCP
-              # Terraform's own worker, which has no Azure CLI installed, and
-              # fails with "could not configure AzureCli Authorizer: ...
-              # exec: \"az\": executable file not found in $PATH" (hit
-              # live setting up prod; backend.tf's own comment already
-              # predicted this exact error for any new workspace). "Local"
-              # mode runs plan/apply right here on the GitHub Actions runner
-              # instead — which already has az/OIDC configured — with HCP
-              # Terraform only holding state and run history. Idempotent:
-              # GETs the workspace, PATCHes it to Local if found, POSTs a new
-              # one already in Local mode if not (so this never depends on
-              # `terraform init` having created it first). Applies to every
-              # directory with a `cloud` block, not just prod's — the same
-              # trap awaits any future *new* workspace (e.g. a new learner's
-              # first nonprod apply), not only this one.
+              # New HCP Terraform workspaces default to Execution Mode "Remote"
+              # (no az CLI there, fails with "az: executable file not found").
+              # Force "Local" so plan/apply run on this runner instead.
+              # Idempotent — GETs/PATCHes or POSTs already-Local. Covers every
+              # directory, not just prod's first run.
               if [ -f backend.tf ] && grep -q 'workspaces {' backend.tf; then
                 TF_ORG=$(grep -oE 'organization[[:space:]]*=[[:space:]]*"[^"]+"' backend.tf | sed -E 's/.*"([^"]+)".*/\1/')
                 TF_WS=$(grep -oE 'name[[:space:]]*=[[:space:]]*"[^"]+"' backend.tf | sed -E 's/.*"([^"]+)".*/\1/')
@@ -287,31 +220,13 @@ jobs:
           cat "$SUMMARY_FILE" >> "$GITHUB_STEP_SUMMARY"
           exit $STATUS
 
-      # ── Sync AZURE_CLIENT_ID into the app repos ─────────────────────────────────
-      # Only relevant when terraform-core was part of this run and actually
-      # applied cleanly — ci_app_deploy_client_id (terraform-core/outputs.tf)
-      # is stable across applies unless azurerm_user_assigned_identity.ci_app_deploy
-      # is recreated, which a full destroy/apply cycle does with a new
-      # client-id, silently breaking azure-quiz-backend/frontend's
-      # deploy(-aks).yml (wrong AZURE_CLIENT_ID -> OIDC login fails) until
-      # someone remembers to paste the new value by hand. This step removes
-      # that manual step entirely.
-      #
-      # Written to the app repos' ${{ inputs.environment }} ENVIRONMENT secret,
-      # not the repo-level one: nonprod and prod each apply terraform-core
-      # against a different Azure subscription (separate HCP Terraform
-      # workspace, see the sed step above) and so each produces its OWN
-      # ci_app_deploy identity with its OWN client-id. Writing both to the same
-      # repo-level secret would make whichever environment applied most
-      # recently silently clobber the other's app-repo deploys — that's
-      # exactly the bug this used to have before prod existed at all.
-      #
-      # gh CLI's own token (GITHUB_TOKEN) only has permissions scoped to *this*
-      # repo — writing a secret into another repo needs a PAT with rights on
-      # those repos specifically (GH_PAT_APPS, fine-grained, "Secrets: Read
-      # and write" only, scoped to exactly azure-quiz-backend + azure-quiz-frontend).
-      # continue-on-error: this is a convenience on top of an already-successful
-      # apply, not part of what "apply succeeded" means.
+      # Syncs the fresh ci_app_deploy client-id (recreated by a full
+      # destroy/apply) to the app repos, so their deploy workflows don't need
+      # it pasted in by hand. Written to each repo's ${{ inputs.environment }}
+      # secret specifically — nonprod/prod each have their own ci_app_deploy
+      # identity now, so a repo-level secret would let one clobber the other.
+      # Needs GH_PAT_APPS (fine-grained, Secrets + Environments write, scoped
+      # to azure-quiz-backend/frontend) — GITHUB_TOKEN can't write cross-repo.
       - name: Sync AZURE_CLIENT_ID to app repos
         if: inputs.action == 'apply' && success() && contains(inputs.directories, 'terraform-core')
         continue-on-error: true

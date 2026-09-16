@@ -30,6 +30,12 @@ variable "environment" {
   }
 }
 
+variable "app_name" {
+  description = "Short app identifier used in prod resource names alongside owner/environment (e.g. \"quiz\")."
+  type        = string
+  default     = "quiz"
+}
+
 variable "tags" {
   description = "Additional tags to merge with default tags"
   type        = map(string)

@@ -117,8 +117,9 @@ No modules.
 
 | Name | Description | Type | Default | Required |
 | ---- | ----------- | ---- | ------- | :------: |
+| app\_name | Short app identifier used in prod resource names alongside owner/environment (e.g. "quiz"). | `string` | `"quiz"` | no |
 | automation\_only | Guard against accidental local apply/destroy — set to true only by the CI pipeline (TF\_VAR\_automation\_only). | `bool` | n/a | yes |
-| core\_workspace\_name | HCP Terraform Cloud workspace name of ../terraform-core, read via terraform\_remote\_state for the VNet/Storage Account/ci\_app\_deploy identity this track's resources attach to. | `string` | `"azure-core-alderic-hoarau"` | no |
+| core\_workspace\_name | HCP Terraform Cloud workspace name of ../terraform-core, read via terraform\_remote\_state for the VNet/Storage Account/ci\_app\_deploy identity this track's resources attach to. | `string` | `"azure-quiz-core-alderic-hoarau-nonprod"` | no |
 | environment | Environment this deployment belongs to. | `string` | `"nonprod"` | no |
 | location | Azure region for resources | `string` | `"francecentral"` | no |
 | owner | Learner identifier — must match ../terraform-core's var.owner (same RG, same resource-naming convention). | `string` | n/a | yes |

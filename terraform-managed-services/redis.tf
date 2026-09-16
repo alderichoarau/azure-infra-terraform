@@ -20,8 +20,8 @@
 # ──────────────────────────────────────────────────────────────────────────────
 
 resource "azurerm_managed_redis" "app" {
-  # Globally-unique name — see main.tf's env_suffix.
-  name                = "redis-${var.owner}${local.env_suffix}-tf"
+  # Globally-unique name — see main.tf's resource_suffix.
+  name                = "redis-${local.resource_suffix}-tf"
   resource_group_name = data.azurerm_resource_group.rg.name
   location            = var.location
   sku_name            = var.redis_sku_name

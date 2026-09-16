@@ -77,7 +77,7 @@ No modules.
 | ---- | ----------- | ---- | ------- | :------: |
 | automation\_only | Guard against accidental local apply/destroy — set to true only by the CI pipeline (TF\_VAR\_automation\_only). | `bool` | n/a | yes |
 | cohort | Cohort/promo identifier, must match ../terraform-shared-aks's var.cohort — used to build the shared cluster's name (aks-<environment>-<cohort>) since it lives outside this apply's own Resource Group. No default on purpose — comes from the AZURE\_COHORT GitHub secret (TF\_VAR\_cohort) or an explicit -var locally. | `string` | n/a | yes |
-| core\_workspace\_name | HCP Terraform Cloud workspace name of ../terraform-core, read via terraform\_remote\_state for the ci\_app\_deploy identity that needs AcrPush on this track's ACR. | `string` | `"azure-core-alderic-hoarau"` | no |
+| core\_workspace\_name | HCP Terraform Cloud workspace name of ../terraform-core, read via terraform\_remote\_state for the ci\_app\_deploy identity that needs AcrPush on this track's ACR. | `string` | `"azure-quiz-core-alderic-hoarau-nonprod"` | no |
 | environment | Environment this deployment belongs to — must match one of ../terraform-shared-aks's var.environments, since it's used to build the shared cluster's name below. | `string` | `"nonprod"` | no |
 | location | Azure region for resources | `string` | `"francecentral"` | no |
 | owner | Learner identifier — must match ../terraform-core's var.owner (same RG, same resource-naming convention). | `string` | n/a | yes |

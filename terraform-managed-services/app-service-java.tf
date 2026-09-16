@@ -50,8 +50,8 @@ resource "azurerm_subnet" "java_app" {
 # ──────────────────────────────────────────────────────────────────────────────
 
 resource "azurerm_linux_web_app" "java_app" {
-  # Globally-unique name — see main.tf's env_suffix.
-  name                = "app-java-${var.owner}${local.env_suffix}-tf"
+  # Globally-unique name — see main.tf's resource_suffix.
+  name                = "app-java-${local.resource_suffix}-tf"
   resource_group_name = data.azurerm_resource_group.rg.name
   location            = var.location
   service_plan_id     = data.azurerm_service_plan.shared.id
