@@ -1,0 +1,109 @@
+# -----------------------------------------------------------------------------------------------
+# FinOps: stops the prod Postgres Flexible Server overnight (compute isn't billed while stopped,
+# only storage) and starts it back up in the morning -- then restarts the backend App Service so
+# it drops any dead connections HikariCP was holding onto from before the stop.
+#
+# App Service itself is never stopped: an App Service Plan bills hourly regardless of whether the
+# app inside is running, so stopping it buys nothing -- only Postgres.
+#
+# Cron is always UTC and does not follow DST -- times below are 22:00/07:00 Europe/Paris in
+# summer (CEST, UTC+2); in winter (CET) this fires an hour later Paris time. Same tradeoff already
+# accepted in terraform-cleanup.yml's schedule.
+# -----------------------------------------------------------------------------------------------
+name: "FinOps - Postgres nightly stop/start (prod)"
+run-name: "FinOps · Postgres · ${{ github.event_name == 'workflow_dispatch' && inputs.action || (github.event.schedule == '0 20 * * *' && 'stop' || 'start') }}"
+
+on:
+  schedule:
+    - cron: "0 20 * * *" # 22:00 Europe/Paris (CEST)
+    - cron: "0 5 * * *" # 07:00 Europe/Paris (CEST)
+  workflow_dispatch:
+    inputs:
+      action:
+        required: true
+        type: choice
+        options:
+          - stop
+          - start
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  ACTION: ${{ github.event_name == 'workflow_dispatch' && inputs.action || (github.event.schedule == '0 20 * * *' && 'stop' || 'start') }}
+
+jobs:
+  postgres-schedule:
+    runs-on: ubuntu-latest
+    environment: prod
+    env:
+      AZURE_RG_NAME: ${{ secrets.AZURE_RG_NAME }}
+      AZURE_OWNER: ${{ secrets.AZURE_OWNER }}
+    steps:
+      - name: "Azure Login (OIDC)"
+        uses: alderichoarau/gha-actions/azure-login@azure-login-v1
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: "Find Postgres server by tag"
+        id: find-pg
+        run: |
+          NAME=$(az resource list \
+            --resource-group "$AZURE_RG_NAME" \
+            --query "[?type=='Microsoft.DBforPostgreSQL/flexibleServers' && tags.owner=='$AZURE_OWNER' && tags.environment=='prod'].name | [0]" \
+            -o tsv)
+          if [ -z "$NAME" ]; then
+            echo "::error::No Postgres Flexible Server found (owner=$AZURE_OWNER, environment=prod)."
+            exit 1
+          fi
+          echo "name=$NAME" >> "$GITHUB_OUTPUT"
+
+      - name: "Stop Postgres"
+        if: env.ACTION == 'stop'
+        run: az postgres flexible-server stop --name "${{ steps.find-pg.outputs.name }}" --resource-group "$AZURE_RG_NAME"
+
+      - name: "Start Postgres"
+        if: env.ACTION == 'start'
+        run: az postgres flexible-server start --name "${{ steps.find-pg.outputs.name }}" --resource-group "$AZURE_RG_NAME"
+
+      - name: "Wait for Postgres to be Ready"
+        if: env.ACTION == 'start'
+        run: |
+          for i in $(seq 1 30); do
+            STATE=$(az postgres flexible-server show --name "${{ steps.find-pg.outputs.name }}" --resource-group "$AZURE_RG_NAME" --query state -o tsv)
+            [ "$STATE" = "Ready" ] && exit 0
+            sleep 10
+          done
+          echo "::error::Postgres did not reach 'Ready' within 5 minutes."
+          exit 1
+
+      - name: "Find App Service by tag"
+        if: env.ACTION == 'start'
+        id: find-app
+        run: |
+          NAME=$(az resource list \
+            --resource-group "$AZURE_RG_NAME" \
+            --query "[?type=='Microsoft.Web/sites' && tags.component=='quiz-backend' && tags.owner=='$AZURE_OWNER' && tags.environment=='prod'].name | [0]" \
+            -o tsv)
+          if [ -z "$NAME" ]; then
+            echo "::error::No backend App Service found (owner=$AZURE_OWNER, environment=prod)."
+            exit 1
+          fi
+          echo "name=$NAME" >> "$GITHUB_OUTPUT"
+
+      - name: "Restart App Service (drop stale DB connections)"
+        if: env.ACTION == 'start'
+        run: az webapp restart --name "${{ steps.find-app.outputs.name }}" --resource-group "$AZURE_RG_NAME"
+
+      - name: "Job summary"
+        if: always()
+        run: |
+          echo "## FinOps · Postgres ${{ env.ACTION }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Server** : ${{ steps.find-pg.outputs.name }}" >> "$GITHUB_STEP_SUMMARY"
+          if [ "${{ env.ACTION }}" = "start" ]; then
+            echo "- **App Service restarted** : ${{ steps.find-app.outputs.name }}" >> "$GITHUB_STEP_SUMMARY"
+          fi
+          echo "- **Trigger** : ${{ github.event_name }}" >> "$GITHUB_STEP_SUMMARY"
