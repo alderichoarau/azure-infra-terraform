@@ -1,0 +1,85 @@
+# -----------------------------------------------------------------------------------------------
+# Stand-in for Dependabot on alderichoarau/gha-actions references: Dependabot's github-actions
+# updater can't parse per-module prefixed tags (<module>-vN) -- it only recognizes a bare vN at
+# the start of the ref (dependabot/dependabot-core#14363), so it silently never proposes a bump
+# here. This scans this repo's own workflow files for alderichoarau/gha-actions/<module>@<tag>
+# references, compares each against that module's latest tag, and opens a PR if any are outdated.
+# -----------------------------------------------------------------------------------------------
+name: "Check gha-actions updates"
+run-name: "Check gha-actions updates"
+
+on:
+  schedule:
+    - cron: "0 6 * * 1" # weekly, Monday
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          token: ${{ secrets.GH_PAT_WORKFLOWS }}
+
+      - name: "Bump outdated alderichoarau/gha-actions references"
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT_WORKFLOWS }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          BRANCH="chore/bump-gha-actions"
+          CHANGED=0
+
+          REFS=$(grep -rhoE 'alderichoarau/gha-actions/[a-zA-Z0-9_-]+@[a-zA-Z0-9_-]+' .github/workflows/*.yml | sort -u)
+
+          # `while read` line-by-line, not `for ref in $REFS`: word-splitting an unquoted
+          # multi-line variable was silently merging every ref into one broken iteration.
+          echo "$REFS" | while IFS= read -r ref; do
+            [ -z "$ref" ] && continue
+            MODULE=$(echo "$ref" | sed -E 's#.*/gha-actions/([^@]+)@.*#\1#')
+            CURRENT_TAG=$(echo "$ref" | sed -E 's#.*@(.*)#\1#')
+
+            LATEST_VERSION=$(git ls-remote --tags https://github.com/alderichoarau/gha-actions.git "${MODULE}-v*" \
+              | sed -E "s#.*refs/tags/${MODULE}-v##" \
+              | sort -n | tail -1)
+
+            if [ -z "$LATEST_VERSION" ]; then
+              echo "::warning::No tags found for module '$MODULE' -- skipping."
+              continue
+            fi
+
+            NEW_TAG="${MODULE}-v${LATEST_VERSION}"
+            if [ "$NEW_TAG" != "$CURRENT_TAG" ]; then
+              echo "Bumping $MODULE: $CURRENT_TAG -> $NEW_TAG"
+              grep -rl "alderichoarau/gha-actions/${MODULE}@${CURRENT_TAG}" .github/workflows/*.yml | \
+                xargs sed -i "s#alderichoarau/gha-actions/${MODULE}@${CURRENT_TAG}#alderichoarau/gha-actions/${MODULE}@${NEW_TAG}#g"
+              touch /tmp/gha-changed
+            fi
+          done
+          [ -f /tmp/gha-changed ] && CHANGED=1 || CHANGED=0
+
+          if [ "$CHANGED" -eq 0 ]; then
+            echo "Nothing to bump."
+            exit 0
+          fi
+
+          git checkout -B "$BRANCH"
+          git add .github/workflows/*.yml
+          git commit -m "chore: bump alderichoarau/gha-actions references"
+          git push origin "$BRANCH" --force
+
+          EXISTING_PR=$(gh pr list --head "$BRANCH" --state open --json number --jq '.[0].number')
+          if [ -z "$EXISTING_PR" ]; then
+            gh pr create \
+              --title "chore: bump alderichoarau/gha-actions references" \
+              --body "Automated check against alderichoarau/gha-actions' latest per-module tags (Dependabot can't parse this repo's prefixed tag scheme -- see dependabot/dependabot-core#14363)." \
+              --base main \
+              --head "$BRANCH"
+          else
+            echo "PR #$EXISTING_PR already open, branch updated."
+          fi
