@@ -1,7 +1,7 @@
 # ──────────────────────────────────────────────────────────────────────────────
 # database.tf — PostgreSQL Flexible Server.
 #
-# TP Java/Angular. Connection info is pushed to Key Vault (keyvault.tf), never
+# Java/Angular, managed-services track. Connection info is pushed to Key Vault (keyvault.tf), never
 # exposed as a plain Terraform output.
 #
 # Networking mode is a var.postgres_public_access-gated toggle between two
@@ -9,7 +9,7 @@
 # combining delegated_subnet_id with public_network_access_enabled = true —
 # unlike Redis/Storage, there's no way to have both at once here):
 #
-#   - false (VNet-integrated, the original "services managés" setup): its own
+#   - false (VNet-integrated, the original managed-services setup): its own
 #     delegated subnet-data (can't reuse subnet-backend — that one's delegated
 #     to Microsoft.Web/serverFarms for the Web App's outbound VNet
 #     Integration, and a subnet can only carry one service delegation) + a

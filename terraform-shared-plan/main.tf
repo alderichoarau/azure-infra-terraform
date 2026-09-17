@@ -1,7 +1,7 @@
 # ──────────────────────────────────────────────────────────────────────────────
 # main.tf — shared App Service Plan, trainer-side.
 #
-# TP Java/Angular + observabilité Python — one plan for the whole cohort,
+# Java/Angular + Python observability — one plan for the whole cohort,
 # hosting every learner's Python App Service + Function App
 # (../terraform-python) AND Java Web App (../terraform-managed-services).
 # Used to be one dedicated plan per learner per app (plan-<owner>-tf,

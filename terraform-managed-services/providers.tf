@@ -4,20 +4,20 @@ terraform {
   required_providers {
     azurerm = {
       source = "hashicorp/azurerm"
-      # >= 4.60 requis par azurerm_managed_redis (redis.tf) — le service
-      # historique Azure Cache for Redis n'accepte plus de nouvelles instances.
+      # >= 4.60 required by azurerm_managed_redis (redis.tf) — the legacy
+      # Azure Cache for Redis service no longer accepts new instances.
       version = "~> 4.81"
     }
-    # Génère le mot de passe admin PostgreSQL (database.tf) — évite de le faire
-    # transiter en variable/tfvars.
+    # Generates the Postgres admin password (database.tf) — avoids passing it
+    # through a variable/tfvars.
     random = {
       source  = "hashicorp/random"
       version = "~> 3.6"
     }
-    # Laisse le temps aux role assignments RBAC du Key Vault de se propager avant
-    # d'écrire les secrets (keyvault.tf) — sans ça, l'apply échoue parfois en 403
-    # sur le premier azurerm_key_vault_secret, la propagation RBAC n'étant pas
-    # instantanée côté Azure AD.
+    # Gives Key Vault's RBAC role assignments time to propagate before writing
+    # secrets (keyvault.tf) — without this, apply sometimes fails 403 on the
+    # first azurerm_key_vault_secret since Azure AD's RBAC propagation isn't
+    # instant.
     time = {
       source  = "hashicorp/time"
       version = "~> 0.9"

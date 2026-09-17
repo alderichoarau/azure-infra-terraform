@@ -1,33 +1,24 @@
 # ──────────────────────────────────────────────────────────────────────────────
-# Observability stack, part 2: Prometheus managé (Azure Monitor managed service for
-# Prometheus) + Grafana managé, en complément d'observability.tf (../terraform-python,
-# Log Analytics + Application Insights + Availability Tests + alertes).
+# Observability stack, part 2: managed Prometheus (Azure Monitor) + managed Grafana,
+# alongside observability.tf (../terraform-python: Log Analytics, App Insights,
+# Availability Tests, alerts).
 #
-# Extrait dans son propre répertoire/state (voir backend.tf) précisément parce que
-# ce sont les ressources les plus chères du repo, pensées pour tourner 24/7 une fois
-# activées -- avant cette extraction, tout vivait dans ../terraform derrière un
-# count = var.enable_prometheus_stack ? 1 : 0 sur chaque resource, pour éviter de
-# les recréer à chaque cycle destroy/apply pendant qu'on itérait sur la piste
-# Java/Angular. Un répertoire séparé rend ce même objectif structurel plutôt
-# qu'conditionnel : appliquer/détruire CE répertoire est maintenant le toggle.
+# Own directory/state (backend.tf): these are the repo's most expensive resources,
+# meant to run 24/7 once enabled -- applying/destroying this directory is the toggle.
 #
-# Pourquoi un fichier séparé d'observability.tf à l'origine, raison inchangée :
-# ce sont deux signaux différents (traces/requêtes vs métriques custom exposées
-# par l'app en /metrics) et deux stades pédagogiques différents du TP observabilité.
+# Separate from observability.tf: different signal (custom /metrics vs traces/requests).
 #
-# Prérequis opérationnel non couvert par ce fichier — et plus large qu'il n'y paraît :
-# azurerm_monitor_workspace crée son Data Collection Rule par défaut dans un resource
-# group managé séparé, généré par Azure (ex: "MA_amw-<owner>-tf_<region>_managed"),
-# PAS dans data.azurerm_resource_group.rg. "User Access Administrator" donné seulement
-# sur le RG de l'apprenant ne couvre donc pas ce RG managé (il n'existe même pas encore
-# au moment où on donnerait ce droit). Il faut ce rôle (ou "Role Based Access Control
-# Administrator", plus restreint et suffisant ici) au niveau de l'ABONNEMENT pour le
-# principal qui fait terraform apply — sans ça, azurerm_role_assignment.prometheus_publisher
-# échoue en 403 AuthorizationFailed, même si Contributor + UAA sont bien présents sur le RG.
+# Gotcha: azurerm_monitor_workspace's Data Collection Rule lives in an Azure-managed
+# resource group (e.g. "MA_amw-<owner>-tf_<region>_managed"), not in
+# data.azurerm_resource_group.rg -- so "User Access Administrator" on the learner's own
+# RG doesn't cover it. The apply principal needs that role (or "Role Based Access
+# Control Administrator") at the SUBSCRIPTION level, or
+# azurerm_role_assignment.prometheus_publisher fails 403 even with Contributor + UAA
+# on the RG.
 #
-# Authentification remote_write : validée par Microsoft pour VM/VMSS et AKS avec identité
-# managée — pas (encore) pour Container Apps, d'où le choix d'une VM ici plutôt qu'un
-# conteneur. Voir https://learn.microsoft.com/azure/azure-monitor/metrics/prometheus-remote-write
+# remote_write auth is Microsoft-validated for VM/VMSS/AKS with a managed identity,
+# not yet Container Apps -- hence a VM here. See
+# https://learn.microsoft.com/azure/azure-monitor/metrics/prometheus-remote-write
 # ──────────────────────────────────────────────────────────────────────────────
 
 locals {
@@ -74,7 +65,7 @@ data "terraform_remote_state" "python" {
   }
 }
 
-# ── Azure Monitor Workspace (Prometheus managé) ───────────────────────────────
+# ── Azure Monitor Workspace (managed Prometheus) ──────────────────────────────
 
 resource "azurerm_monitor_workspace" "amw" {
   name                = "amw-${var.owner}-tf"
@@ -83,14 +74,14 @@ resource "azurerm_monitor_workspace" "amw" {
   tags                = local.tags
 }
 
-# ── Grafana managé ────────────────────────────────────────────────────────────
+# ── Managed Grafana ────────────────────────────────────────────────────────────
 
 resource "azurerm_dashboard_grafana" "grafana" {
-  # Azure Managed Grafana impose un nom de 2 à 23 caractères (lettres/chiffres/tirets).
+  # Azure Managed Grafana requires a 2-23 char name (letters/digits/hyphens).
   name                  = substr("grafana${replace(var.owner, "-", "")}", 0, 23)
   resource_group_name   = data.azurerm_resource_group.rg.name
   location              = var.location
-  grafana_major_version = "12" # les versions valides évoluent régulièrement côté Azure -- si ça casse, le message d'erreur Azure donne les valeurs valides du moment
+  grafana_major_version = "12" # valid versions change over time -- Azure's error message lists current ones if this breaks
   tags                  = local.tags
 
   identity {
@@ -104,15 +95,13 @@ resource "azurerm_role_assignment" "grafana_monitoring_reader" {
   principal_id         = azurerm_dashboard_grafana.grafana.identity[0].principal_id
 }
 
-# ── Réseau dédié à la VM Prometheus ────────────────────────────────────────────
-# Subnet dédié plutôt que subnet-backend (module.network, ../terraform-core) : ce
-# dernier a son propre NSG avec des security_rule inline, et AzureRM déconseille
-# de mélanger ça avec des azurerm_network_security_rule autonomes sur le même
-# NSG (comportement instable constaté en pratique). Un subnet + NSG dédiés,
-# jamais partagés, élimine le conflit.
+# ── Dedicated network for the Prometheus VM ───────────────────────────────────
+# Own subnet rather than subnet-backend (../terraform-core): that one's NSG uses
+# inline security_rule blocks, and mixing those with standalone
+# azurerm_network_security_rule on the same NSG is unstable in practice.
 #
-# 10.0.3.0/24 : libre dans l'address space du VNet (10.0.0.0/16, ../terraform-core),
-# à côté de subnet-frontend (10.0.1.0/24) et subnet-backend (10.0.2.0/24).
+# 10.0.3.0/24: free in the VNet's 10.0.0.0/16, next to subnet-frontend
+# (10.0.1.0/24) and subnet-backend (10.0.2.0/24).
 
 resource "azurerm_subnet" "prometheus" {
   name                 = "subnet-prometheus"
@@ -122,8 +111,8 @@ resource "azurerm_subnet" "prometheus" {
 }
 
 resource "azurerm_network_security_group" "prometheus_vm" {
-  # checkov:skip=CKV_AZURE_10: SSH ouvert pour les besoins du TP (dépannage) — à restreindre
-  # à l'IP de la salle en usage réel, cf. var.trainer_ip_cidr
+  # checkov:skip=CKV_AZURE_10: SSH open for troubleshooting -- restrict to the
+  # training room's IP in real use, see var.trainer_ip_cidr
   name                = "nsg-prometheus-${var.owner}-tf"
   resource_group_name = data.azurerm_resource_group.rg.name
   location            = var.location
@@ -141,9 +130,8 @@ resource "azurerm_network_security_group" "prometheus_vm" {
     destination_address_prefix = "*"
   }
 
-  # Pas de règle Outbound explicite : les règles par défaut d'Azure suffisent
-  # (la VM a besoin d'Internet sortant -- apt, binaire Prometheus, ARM, scrape,
-  # remote_write).
+  # No explicit outbound rule: Azure's defaults are enough (the VM needs
+  # outbound internet -- apt, Prometheus binary, ARM, scrape, remote_write).
 }
 
 resource "azurerm_subnet_network_security_group_association" "prometheus" {
@@ -152,7 +140,7 @@ resource "azurerm_subnet_network_security_group_association" "prometheus" {
 }
 
 resource "azurerm_public_ip" "prometheus_vm" {
-  # checkov:skip=CKV_AZURE_59: IP publique nécessaire pour le scrape sortant + SSH de dépannage sur ce TP
+  # checkov:skip=CKV_AZURE_59: public IP needed for outbound scrape + troubleshooting SSH
   name                = "pip-prometheus-${var.owner}-tf"
   resource_group_name = data.azurerm_resource_group.rg.name
   location            = var.location
@@ -162,7 +150,7 @@ resource "azurerm_public_ip" "prometheus_vm" {
 }
 
 resource "azurerm_network_interface" "prometheus_vm" {
-  # checkov:skip=CKV_AZURE_119: IP publique nécessaire (scrape sortant + SSH de dépannage) sur ce TP éphémère
+  # checkov:skip=CKV_AZURE_119: public IP needed (outbound scrape + troubleshooting SSH), ephemeral VM
   name                = "nic-prometheus-${var.owner}-tf"
   resource_group_name = data.azurerm_resource_group.rg.name
   location            = var.location
@@ -181,16 +169,16 @@ resource "azurerm_network_interface_security_group_association" "prometheus_vm" 
   network_security_group_id = azurerm_network_security_group.prometheus_vm.id
 }
 
-# ── Clé SSH générée par Terraform ─────────────────────────────────────────────
+# ── SSH key, generated by Terraform ───────────────────────────────────────────
 resource "tls_private_key" "prometheus_vm" {
   algorithm = "RSA"
   rsa_bits  = 4096
 }
 
-# ── VM Prometheus ──────────────────────────────────────────────────────────────
+# ── Prometheus VM ──────────────────────────────────────────────────────────────
 resource "azurerm_linux_virtual_machine" "prometheus" {
-  # checkov:skip=CKV_AZURE_149: pas de Trusted Launch nécessaire pour cette VM de TP éphémère
-  # checkov:skip=CKV_AZURE_50: pas d'extension antimalware nécessaire pour cette VM de TP éphémère
+  # checkov:skip=CKV_AZURE_149: Trusted Launch not needed for this ephemeral VM
+  # checkov:skip=CKV_AZURE_50: antimalware extension not needed for this ephemeral VM
   name                  = "vm-prometheus-${var.owner}-tf"
   resource_group_name   = data.azurerm_resource_group.rg.name
   location              = var.location
@@ -245,9 +233,9 @@ resource "azurerm_role_assignment" "prometheus_dcr_reader" {
   principal_id         = azurerm_linux_virtual_machine.prometheus.identity[0].principal_id
 }
 
-# ── Alerte sur la métrique custom exposée par l'app (log_erreurs_total) ───────
-# Réutilise l'Action Group "team" de ../terraform-python/observability.tf via
-# terraform_remote_state (action_group_id ci-dessous) -- pas de doublon.
+# ── Alert on the app's custom metric (log_erreurs_total) ──────────────────────
+# Reuses the "team" Action Group from ../terraform-python/observability.tf via
+# terraform_remote_state (action_group_id below) -- no duplicate.
 
 resource "azurerm_monitor_alert_prometheus_rule_group" "alerte_erreurs" {
   name                = "alerte-erreurs-${var.owner}-tf"

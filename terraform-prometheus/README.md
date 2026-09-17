@@ -47,14 +47,14 @@ Auto-généré par le hook pre-commit `terraform_docs` (`.terraform-docs.yml`) �
 | Name | Version |
 | ---- | ------- |
 | terraform | >= 1.9 |
-| azurerm | ~> 4.60 |
+| azurerm | ~> 5.5 |
 | tls | ~> 4.0 |
 
 ## Providers
 
 | Name | Version |
 | ---- | ------- |
-| azurerm | 4.81.0 |
+| azurerm | 5.5.0 |
 | terraform | n/a |
 | tls | 4.3.0 |
 
@@ -98,7 +98,7 @@ No modules.
 | python\_workspace\_name | HCP Terraform Cloud workspace name of ../terraform-python -- read via terraform\_remote\_state (main.tf) for the Python App Service's hostname (scrape target) and the shared "team" Action Group's ID (so alerts land in the same place as observability.tf's, no duplicate Action Group). | `string` | `"azure-python-alderic-hoarau"` | no |
 | resource\_group\_name | Same Resource Group as ../terraform-core -- this stack lives alongside the rest of the learner's infra, not a separate one. | `string` | n/a | yes |
 | tags | n/a | `map(string)` | `{}` | no |
-| trainer\_ip\_cidr | CIDR autorisé en SSH (22) sur la VM Prometheus. | `string` | n/a | yes |
+| trainer\_ip\_cidr | CIDR allowed to SSH (22) into the Prometheus VM. | `string` | n/a | yes |
 
 ## Outputs
 

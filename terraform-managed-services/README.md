@@ -140,7 +140,7 @@ No modules.
 | ---- | ----------- |
 | angular\_frontend\_url | URL of the Angular Static Web App |
 | backend\_api\_key | Shared API key the Angular app must send as X-Api-Key to the Java backend (see app-service-java.tf / keyvault.tf) — wire this into the frontend repo's CI/build as a secret, never commit it. |
-| java\_app\_service\_url | URL of the Java Web App (TP Java/Angular — services managés) |
+| java\_app\_service\_url | URL of the Java Web App (Java/Angular, managed-services track) |
 | java\_uploads\_container\_url | URL of the Java TP's container on the shared Storage Account — access is Azure AD/RBAC-only (see storage-java.tf), not network-restricted |
 | key\_vault\_uri | URI of the Key Vault holding the PostgreSQL/Redis connection secrets |
 | postgres\_fqdn | FQDN of the PostgreSQL Flexible Server (private DNS zone — only resolvable/reachable from inside the VNet, unless postgres\_public\_access = true) |

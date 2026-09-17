@@ -1,7 +1,7 @@
 # ──────────────────────────────────────────────────────────────────────────────
 # keyvault.tf — Key Vault storing the PostgreSQL connection secrets.
 #
-# TP Java/Angular — piste "services managés" (cahier des charges §2 et §6:
+# Java/Angular, managed-services track (spec §2 and §6:
 # Key Vault required for DB credentials, reachable only from the backend).
 #
 # RBAC authorization (not legacy access policies). Public network access is

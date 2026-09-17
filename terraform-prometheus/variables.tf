@@ -41,7 +41,7 @@ variable "python_workspace_name" {
 }
 
 variable "trainer_ip_cidr" {
-  description = "CIDR autorisé en SSH (22) sur la VM Prometheus."
+  description = "CIDR allowed to SSH (22) into the Prometheus VM."
   type        = string
 
   validation {

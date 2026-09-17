@@ -30,7 +30,7 @@ on:
         required: true
         type: string
       role:
-        description: "Rôle Azure"
+        description: "Azure role"
         required: true
         type: choice
         default: "Reader"
@@ -47,9 +47,9 @@ on:
           - "Azure Kubernetes Service Cluster User Role"
           - "Azure Kubernetes Service RBAC Admin"
           - "Azure Kubernetes Service RBAC Reader"
-          - "Autre (voir role_custom)"
+          - "Other (see role_custom)"
       role_custom:
-        description: "Rôle exact à utiliser si 'Autre (voir role_custom)' est sélectionné ci-dessus -- ignoré sinon"
+        description: "Exact role to use if 'Other (see role_custom)' is selected above -- ignored otherwise"
         required: false
         type: string
         default: ""
@@ -92,9 +92,9 @@ jobs:
       - name: Resolve role name
         id: role
         run: |
-          if [ "${{ inputs.role }}" = "Autre (voir role_custom)" ]; then
+          if [ "${{ inputs.role }}" = "Other (see role_custom)" ]; then
             if [ -z "${{ inputs.role_custom }}" ]; then
-              echo "::error::role_custom est vide alors que 'Autre (voir role_custom)' a été choisi pour role."
+              echo "::error::role_custom is empty but 'Other (see role_custom)' was chosen for role."
               exit 1
             fi
             echo "name=${{ inputs.role_custom }}" >> "$GITHUB_OUTPUT"

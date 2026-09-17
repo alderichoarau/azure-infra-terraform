@@ -6,7 +6,7 @@
 # for the app deploy pipelines to hold those too).
 #
 # Lives in terraform-core, not a per-track directory: both the
-# "services managés" track (../terraform-managed-services) and the "AKS"
+# managed-services track (../terraform-managed-services) and the "AKS"
 # track (../terraform-aks-app) need this SAME identity to push
 # secrets/images — Key Vault Secrets User (managed-services) and AcrPush
 # (aks-app) role assignments are added onto it in each of those directories,

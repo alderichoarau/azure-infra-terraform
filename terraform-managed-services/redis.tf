@@ -1,12 +1,12 @@
 # ──────────────────────────────────────────────────────────────────────────────
 # redis.tf — Azure Managed Redis.
 #
-# TP Java/Angular — piste "services managés". Azure Cache for Redis (the older
+# Java/Angular, managed-services track. Azure Cache for Redis (the older
 # service) is closed to new creations — see
 # https://aka.ms/AzureCacheForRedisRetirement — hence azurerm_managed_redis
 # (requires azurerm >= 4.60, see providers.tf) instead of azurerm_redis_cache.
 #
-# public_network_access = "Enabled" (piste AKS): the shared AKS cluster
+# public_network_access = "Enabled" (AKS track): the shared AKS cluster
 # (../terraform-aks-app, ../terraform-shared-aks) lives in its own VNet,
 # outside this one, with no peering (see terraform-shared-aks/main.tf's
 # network note — peering would need a manual trainer-side grant per learner,

@@ -1,5 +1,5 @@
 # ──────────────────────────────────────────────────────────────────────────────
-# main.tf — TP observabilité Python: App Service + Function App + Container
+# main.tf — Python observability track: App Service + Function App + Container
 # Instance + Log Analytics/App Insights/alerts.
 #
 #   - app-service.tf   — Python App Service (shared plan)

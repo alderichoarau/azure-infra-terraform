@@ -1,5 +1,5 @@
 output "java_app_service_url" {
-  description = "URL of the Java Web App (TP Java/Angular — services managés)"
+  description = "URL of the Java Web App (Java/Angular, managed-services track)"
   value       = "https://${azurerm_linux_web_app.java_app.default_hostname}"
 }
 

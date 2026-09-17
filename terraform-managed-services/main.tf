@@ -1,5 +1,5 @@
 # ──────────────────────────────────────────────────────────────────────────────
-# main.tf — TP Java/Angular, piste "services managés".
+# main.tf — Java/Angular, managed-services track.
 #
 #   - database.tf          — PostgreSQL Flexible Server
 #   - redis.tf              — Azure Managed Redis
