@@ -40,27 +40,14 @@ jobs:
   bootstrap:
     runs-on: ubuntu-latest
     steps:
-      - name: "Azure Login (OIDC)"
-        uses: azure/login@v3
+      - name: "Azure + AKS admin login"
+        uses: alderichoarau/gha-actions/aks-admin-login@aks-admin-login-v1
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-
-      - name: "Install kubectl"
-        # --kubelogin-version pinned: unpinned, this calls GitHub's
-        # unauthenticated releases/latest API (60 req/hour per IP, shared
-        # across every GitHub-hosted runner) and intermittently fails with
-        # "403 rate limit exceeded" -- hit live on the app repos' aks-deploy.yml.
-        run: az aks install-cli --kubelogin-version v0.2.19
-
-      - name: "Get AKS admin credentials"
-        run: |
-          az aks get-credentials \
-            --resource-group "$SHARED_RG" \
-            --name "$AKS_CLUSTER" \
-            --admin \
-            --overwrite-existing
+          resource-group: ${{ env.SHARED_RG }}
+          cluster-name: ${{ env.AKS_CLUSTER }}
 
       - name: "Create namespace (idempotent)"
         run: |
