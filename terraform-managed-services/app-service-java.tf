@@ -70,8 +70,8 @@ resource "azurerm_linux_web_app" "java_app" {
       # executable jar) rather than Tomcat/JBoss. All three arguments are now
       # required together, even in this mode.
       java_server         = "JAVA"
-      java_server_version = "21"
-      java_version        = "21"
+      java_server_version = "25"
+      java_version        = "25"
     }
 
     # Locked to the Static Web App's own origin — no wildcard, no other domain.
