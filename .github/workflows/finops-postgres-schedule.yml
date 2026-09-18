@@ -6,17 +6,18 @@
 # App Service itself is never stopped: an App Service Plan bills hourly regardless of whether the
 # app inside is running, so stopping it buys nothing -- only Postgres.
 #
-# Cron is always UTC and does not follow DST -- times below are 22:00/07:00 Europe/Paris in
+# Cron is always UTC and does not follow DST -- times below are 19:00/05:00 Europe/Paris in
 # summer (CEST, UTC+2); in winter (CET) this fires an hour later Paris time. Same tradeoff already
 # accepted in terraform-cleanup.yml's schedule.
+#
 # -----------------------------------------------------------------------------------------------
 name: "FinOps - Postgres nightly stop/start (prod)"
-run-name: "FinOps · Postgres · ${{ github.event_name == 'workflow_dispatch' && inputs.action || (github.event.schedule == '0 20 * * *' && 'stop' || 'start') }}"
+run-name: "FinOps · Postgres · ${{ github.event_name == 'workflow_dispatch' && inputs.action || (github.event.schedule == '00 17 * * *' && 'stop' || 'start') }}"
 
 on:
   schedule:
-    - cron: "0 20 * * *" # 22:00 Europe/Paris (CEST)
-    - cron: "0 5 * * *" # 07:00 Europe/Paris (CEST)
+    - cron: "00 17 * * *" # 19:00 Europe/Paris (CEST)
+    - cron: "0 3 * * *" # 05:00 Europe/Paris (CEST)
   workflow_dispatch:
     inputs:
       action:
@@ -31,7 +32,7 @@ permissions:
   contents: read
 
 env:
-  ACTION: ${{ github.event_name == 'workflow_dispatch' && inputs.action || (github.event.schedule == '0 20 * * *' && 'stop' || 'start') }}
+  ACTION: ${{ github.event_name == 'workflow_dispatch' && inputs.action || (github.event.schedule == '00 17 * * *' && 'stop' || 'start') }}
 
 jobs:
   postgres-schedule:
