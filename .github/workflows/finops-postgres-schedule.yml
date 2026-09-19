@@ -1,10 +1,12 @@
 # -----------------------------------------------------------------------------------------------
 # FinOps: stops the prod Postgres Flexible Server overnight (compute isn't billed while stopped,
-# only storage) and starts it back up in the morning -- then restarts the backend App Service so
-# it drops any dead connections HikariCP was holding onto from before the stop.
+# only storage) and starts it back up in the morning.
 #
-# App Service itself is never stopped: an App Service Plan bills hourly regardless of whether the
-# app inside is running, so stopping it buys nothing -- only Postgres.
+# The backend App Service is stopped/started in lockstep -- not for its own billing (an App
+# Service Plan bills hourly regardless of whether the app inside is running, so stopping it alone
+# buys nothing) but so the frontend gets a clean, detectable "backend unreachable" signal during
+# this window instead of confusing errors against a dead Postgres -- see
+# BackendAvailabilityService (azure-quiz-frontend) which shows a dedicated banner for it.
 #
 # Cron is always UTC and does not follow DST -- times below are 19:00/05:00 Europe/Paris in
 # summer (CEST, UTC+2); in winter (CET) this fires an hour later Paris time. Same tradeoff already
@@ -62,10 +64,31 @@ jobs:
           fi
           echo "name=$NAME" >> "$GITHUB_OUTPUT"
 
+      - name: "Find App Service by tag"
+        id: find-app
+        run: |
+          NAME=$(az resource list \
+            --resource-group "$AZURE_RG_NAME" \
+            --query "[?type=='Microsoft.Web/sites' && tags.component=='quiz-backend' && tags.owner=='$AZURE_OWNER' && tags.environment=='prod'].name | [0]" \
+            -o tsv)
+          if [ -z "$NAME" ]; then
+            echo "::error::No backend App Service found (owner=$AZURE_OWNER, environment=prod)."
+            exit 1
+          fi
+          echo "name=$NAME" >> "$GITHUB_OUTPUT"
+
+      # Stop order: App Service first, then Postgres -- so the app isn't left serving requests
+      # against a DB that's already going down mid-request.
+      - name: "Stop App Service"
+        if: env.ACTION == 'stop'
+        run: az webapp stop --name "${{ steps.find-app.outputs.name }}" --resource-group "$AZURE_RG_NAME"
+
       - name: "Stop Postgres"
         if: env.ACTION == 'stop'
         run: az postgres flexible-server stop --name "${{ steps.find-pg.outputs.name }}" --resource-group "$AZURE_RG_NAME"
 
+      # Start order: Postgres first (and wait for it), then App Service -- so the app's first
+      # requests after starting don't hit a DB that isn't ready yet.
       - name: "Start Postgres"
         if: env.ACTION == 'start'
         run: az postgres flexible-server start --name "${{ steps.find-pg.outputs.name }}" --resource-group "$AZURE_RG_NAME"
@@ -81,30 +104,14 @@ jobs:
           echo "::error::Postgres did not reach 'Ready' within 5 minutes."
           exit 1
 
-      - name: "Find App Service by tag"
+      - name: "Start App Service"
         if: env.ACTION == 'start'
-        id: find-app
-        run: |
-          NAME=$(az resource list \
-            --resource-group "$AZURE_RG_NAME" \
-            --query "[?type=='Microsoft.Web/sites' && tags.component=='quiz-backend' && tags.owner=='$AZURE_OWNER' && tags.environment=='prod'].name | [0]" \
-            -o tsv)
-          if [ -z "$NAME" ]; then
-            echo "::error::No backend App Service found (owner=$AZURE_OWNER, environment=prod)."
-            exit 1
-          fi
-          echo "name=$NAME" >> "$GITHUB_OUTPUT"
-
-      - name: "Restart App Service (drop stale DB connections)"
-        if: env.ACTION == 'start'
-        run: az webapp restart --name "${{ steps.find-app.outputs.name }}" --resource-group "$AZURE_RG_NAME"
+        run: az webapp start --name "${{ steps.find-app.outputs.name }}" --resource-group "$AZURE_RG_NAME"
 
       - name: "Job summary"
         if: always()
         run: |
-          echo "## FinOps · Postgres ${{ env.ACTION }}" >> "$GITHUB_STEP_SUMMARY"
-          echo "- **Server** : ${{ steps.find-pg.outputs.name }}" >> "$GITHUB_STEP_SUMMARY"
-          if [ "${{ env.ACTION }}" = "start" ]; then
-            echo "- **App Service restarted** : ${{ steps.find-app.outputs.name }}" >> "$GITHUB_STEP_SUMMARY"
-          fi
+          echo "## FinOps · ${{ env.ACTION }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Postgres server** : ${{ steps.find-pg.outputs.name }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **App Service** : ${{ steps.find-app.outputs.name }}" >> "$GITHUB_STEP_SUMMARY"
           echo "- **Trigger** : ${{ github.event_name }}" >> "$GITHUB_STEP_SUMMARY"
