@@ -1,7 +1,7 @@
 checkov:
   stage: security
   image:
-    name: bridgecrewio/checkov:latest
+    name: bridgecrew/checkov:latest
     entrypoint: [""]
   script:
     - checkov -d . --framework terraform --compact --soft-fail
