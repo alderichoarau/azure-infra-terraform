@@ -1,0 +1,32 @@
+# -----------------------------------------------------------------------------------------------
+# Mirrors this repository to GitLab on every push. GitLab's free tier only supports push
+# mirroring, not pull mirroring: https://docs.gitlab.com/user/project/repository/mirror/pull/
+# -----------------------------------------------------------------------------------------------
+name: "Mirror to GitLab"
+run-name: Mirror repository to GitLab
+
+on:
+  push:
+    branches:
+      - "**"
+    tags:
+      - "**"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  mirror:
+    name: "Push mirror to GitLab"
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Mirror to GitLab"
+        uses: alderichoarau/gha-mirror-gitlab@v1
+        with:
+          gitlab-token: ${{ secrets.GITLAB_MIRROR_TOKEN }}
+          gitlab-namespace: alderichoarau
