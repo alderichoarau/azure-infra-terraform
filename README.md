@@ -4,10 +4,21 @@ Azure infrastructure provisioned with Terraform — PRF2026 training context.
 
 Terraform mirror of the [azure-infra-cli](https://github.com/hoaraualderic/azure-infra-cli) project (Bash scripts).
 
-## Last analysis
+## Analysis
+
+### GitHub
+
+**CI**
 
 [![Terraform CI](https://github.com/alderichoarau/azure-infra-terraform/actions/workflows/ci.yml/badge.svg)](https://github.com/alderichoarau/azure-infra-terraform/actions/workflows/ci.yml)
 [![Terraform Secrets Scan](https://github.com/alderichoarau/azure-infra-terraform/actions/workflows/secrets-scan.yml/badge.svg)](https://github.com/alderichoarau/azure-infra-terraform/actions/workflows/secrets-scan.yml)
+
+**Deploy**
+
+[![Deploy Terraform](https://github.com/alderichoarau/azure-infra-terraform/actions/workflows/deploy-terraform.yml/badge.svg)](https://github.com/alderichoarau/azure-infra-terraform/actions/workflows/deploy-terraform.yml)
+
+### Mirror
+
 [![GitLab CI](https://img.shields.io/gitlab/pipeline-status/alderichoarau%2Fazure-infra-terraform?branch=main&label=GitLab%20CI&logo=gitlab)](https://gitlab.com/alderichoarau/azure-infra-terraform/-/pipelines)
 [![Bitbucket Pipelines](https://img.shields.io/bitbucket/pipelines/alderic-hoarau/azure-infra-terraform/main?label=Bitbucket%20CI&logo=bitbucket)](https://bitbucket.org/alderic-hoarau/azure-infra-terraform/pipelines)
 
