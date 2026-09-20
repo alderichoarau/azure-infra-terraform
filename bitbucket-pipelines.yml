@@ -1,0 +1,25 @@
+# -----------------------------------------------------------------------------------------------
+# CI only (no CD) -- lean subset of the checks from .github/workflows/ci.yml (fmt + validate only,
+# no tflint/Checkov, no plan/apply). Scoped to "main" only to stay well within Bitbucket's
+# free-tier 50 build-minutes/month.
+#
+# Needs a repository variable TF_TOKEN_app_terraform_io (Repository settings -> Pipelines ->
+# Repository variables, Secured) for the private module registry on app.terraform.io -- same
+# requirement hit on the GitLab mirror. Bitbucket variables become environment variables directly,
+# same convention Terraform CLI already reads.
+# -----------------------------------------------------------------------------------------------
+image:
+  name: hashicorp/terraform:1.9
+  entrypoint: [""]
+
+pipelines:
+  branches:
+    main:
+      - step:
+          name: Terraform fmt & validate
+          script:
+            - |
+              for dir in terraform-core terraform-python terraform-managed-services terraform-aks-app terraform-shared-aks terraform-shared-plan terraform-prometheus; do
+                echo "== $dir =="
+                (cd "$dir" && terraform fmt -check -recursive && terraform init -backend=false && terraform validate)
+              done

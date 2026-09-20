@@ -1,0 +1,32 @@
+# -----------------------------------------------------------------------------------------------
+# Mirrors this repository to Bitbucket Cloud on every push. Bitbucket has no pull mirroring and no
+# push-to-create, so the target repository must already exist there (workspace: alderic-hoarau).
+# -----------------------------------------------------------------------------------------------
+name: "Mirror to Bitbucket"
+run-name: Mirror repository to Bitbucket
+
+on:
+  push:
+    branches:
+      - "**"
+    tags:
+      - "**"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  mirror:
+    name: "Push mirror to Bitbucket"
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Mirror to Bitbucket"
+        uses: alderichoarau/gha-mirror-bitbucket@v2
+        with:
+          bitbucket-token: ${{ secrets.BITBUCKET_MIRROR_TOKEN }}
+          bitbucket-workspace: alderic-hoarau
