@@ -8,7 +8,7 @@ Terraform mirror of the [azure-infra-cli](https://github.com/hoaraualderic/azure
 
 [![Terraform CI](https://github.com/alderichoarau/azure-infra-terraform/actions/workflows/ci.yml/badge.svg)](https://github.com/alderichoarau/azure-infra-terraform/actions/workflows/ci.yml)
 [![Terraform Secrets Scan](https://github.com/alderichoarau/azure-infra-terraform/actions/workflows/secrets-scan.yml/badge.svg)](https://github.com/alderichoarau/azure-infra-terraform/actions/workflows/secrets-scan.yml)
-[![GitLab CI](https://gitlab.com/alderichoarau/azure-infra-terraform/badges/main/pipeline.svg)](https://gitlab.com/alderichoarau/azure-infra-terraform/-/pipelines)
+[![GitLab CI](https://gitlab.com/alderichoarau/azure-infra-terraform/badges/main/pipeline.svg?key_text=GitLab+CI)](https://gitlab.com/alderichoarau/azure-infra-terraform/-/pipelines)
 [![Bitbucket Pipelines](https://img.shields.io/bitbucket/pipelines/alderic-hoarau/azure-infra-terraform/main?label=Bitbucket%20CI)](https://bitbucket.org/alderic-hoarau/azure-infra-terraform/pipelines)
 
 ## Mirrors
