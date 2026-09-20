@@ -4,7 +4,10 @@
 # OIDC credentials that are not duplicated onto GitLab. tflint is intentionally left out here: it
 # needs a GITHUB_TOKEN to avoid GitHub API rate limits when fetching plugins, which this pipeline
 # doesn't have. Jobs are split into .gitlab/ci/, one file per stage, mirroring the .github/workflows
-# layout.
+# layout. Secret Detection is GitLab's free-tier native template (results as pipeline artifacts
+# only, no Vulnerability Report/MR integration -- that needs Ultimate); generic SAST is skipped
+# here since this repo has no application source code for it to analyze, only Terraform (already
+# covered by Checkov) and Python glue scripts under terraform-python/.
 # -----------------------------------------------------------------------------------------------
 stages:
   - validate
@@ -13,3 +16,9 @@ stages:
 include:
   - local: .gitlab/ci/validate.yml
   - local: .gitlab/ci/security.yml
+  - template: Security/Secret-Detection.gitlab-ci.yml
+
+# The template defaults this job to a "test" stage this repo doesn't declare -- run it alongside
+# Checkov instead.
+secret_detection:
+  stage: security
