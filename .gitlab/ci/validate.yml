@@ -1,0 +1,20 @@
+terraform-validate:
+  stage: validate
+  image:
+    name: hashicorp/terraform:1.9
+    entrypoint: [""]
+  parallel:
+    matrix:
+      - DIRECTORY:
+          - terraform-core
+          - terraform-python
+          - terraform-managed-services
+          - terraform-aks-app
+          - terraform-shared-aks
+          - terraform-shared-plan
+          - terraform-prometheus
+  script:
+    - cd "$DIRECTORY"
+    - terraform fmt -check -recursive
+    - terraform init -backend=false
+    - terraform validate

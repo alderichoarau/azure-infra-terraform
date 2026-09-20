@@ -3,37 +3,13 @@
 # terraform validate, Checkov). The plan/apply jobs stay on GitHub only, since they need Azure
 # OIDC credentials that are not duplicated onto GitLab. tflint is intentionally left out here: it
 # needs a GITHUB_TOKEN to avoid GitHub API rate limits when fetching plugins, which this pipeline
-# doesn't have.
+# doesn't have. Jobs are split into .gitlab/ci/, one file per stage, mirroring the .github/workflows
+# layout.
 # -----------------------------------------------------------------------------------------------
 stages:
   - validate
   - security
 
-terraform-validate:
-  stage: validate
-  image:
-    name: hashicorp/terraform:1.9
-    entrypoint: [""]
-  parallel:
-    matrix:
-      - DIRECTORY:
-          - terraform-core
-          - terraform-python
-          - terraform-managed-services
-          - terraform-aks-app
-          - terraform-shared-aks
-          - terraform-shared-plan
-          - terraform-prometheus
-  script:
-    - cd "$DIRECTORY"
-    - terraform fmt -check -recursive
-    - terraform init -backend=false
-    - terraform validate
-
-checkov:
-  stage: security
-  image:
-    name: bridgecrewio/checkov:latest
-    entrypoint: [""]
-  script:
-    - checkov -d . --framework terraform --compact --soft-fail
+include:
+  - local: .gitlab/ci/validate.yml
+  - local: .gitlab/ci/security.yml
