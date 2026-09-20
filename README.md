@@ -11,6 +11,15 @@ Terraform mirror of the [azure-infra-cli](https://github.com/hoaraualderic/azure
 [![GitLab CI](https://gitlab.com/alderichoarau/azure-infra-terraform/badges/main/pipeline.svg)](https://gitlab.com/alderichoarau/azure-infra-terraform/-/pipelines)
 [![Bitbucket Pipelines](https://img.shields.io/bitbucket/pipelines/alderic-hoarau/azure-infra-terraform/main)](https://bitbucket.org/alderic-hoarau/azure-infra-terraform/pipelines)
 
+## Mirrors
+
+GitHub is the source of truth. This repository is automatically push-mirrored (read-only) to:
+
+- [GitLab](https://gitlab.com/alderichoarau/azure-infra-terraform)
+- [Bitbucket](https://bitbucket.org/alderic-hoarau/azure-infra-terraform)
+
+Issues and pull requests should be opened on GitHub.
+
 ## Structure: one directory, one state, per cost-control unit
 
 This repo used to be a single `terraform/` directory / single state. It's
