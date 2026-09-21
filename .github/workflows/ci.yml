@@ -82,7 +82,7 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Checkov Security Scan
-        uses: bridgecrewio/checkov-action@v12.3123.0
+        uses: bridgecrewio/checkov-action@v12.3125.0
         with:
           directory: .
           framework: terraform
