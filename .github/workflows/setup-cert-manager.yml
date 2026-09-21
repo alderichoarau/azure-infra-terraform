@@ -44,7 +44,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: "Azure + AKS admin login"
-        uses: alderichoarau/gha-aks-admin-login@v1
+        uses: alderichoarau/gha-aks-admin-login@v2
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
