@@ -115,7 +115,7 @@ jobs:
         uses: alderichoarau/gha-setup-terraform@v2
 
       - name: Azure Login (OIDC)
-        uses: alderichoarau/gha-azure-login@v1
+        uses: alderichoarau/gha-azure-login@v3
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
