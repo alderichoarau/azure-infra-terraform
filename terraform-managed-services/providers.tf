@@ -6,7 +6,7 @@ terraform {
       source = "hashicorp/azurerm"
       # >= 4.60 required by azurerm_managed_redis (redis.tf) — the legacy
       # Azure Cache for Redis service no longer accepts new instances.
-      version = "~> 4.81"
+      version = "~> 5.6"
     }
     # Generates the Postgres admin password (database.tf) — avoids passing it
     # through a variable/tfvars.
