@@ -29,4 +29,4 @@ jobs:
         uses: alderichoarau/gha-mirror-bitbucket@v2
         with:
           bitbucket-token: ${{ secrets.BITBUCKET_MIRROR_TOKEN }}
-          bitbucket-workspace: alderic-hoarau
+          bitbucket-workspace: ${{ vars.BITBUCKET_WORKSPACE }}
