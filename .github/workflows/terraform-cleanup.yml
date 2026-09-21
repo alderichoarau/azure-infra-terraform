@@ -47,7 +47,7 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Setup Terraform
-        uses: alderichoarau/gha-setup-terraform@v1
+        uses: alderichoarau/gha-setup-terraform@v2
 
       - name: Azure Login (OIDC)
         uses: alderichoarau/gha-azure-login@v1
