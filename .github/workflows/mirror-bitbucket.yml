@@ -7,8 +7,8 @@ run-name: Mirror repository to Bitbucket
 
 on:
   push:
-    branches:
-      - "**"
+    branches-ignore:
+      - "dependabot/**"
     tags:
       - "**"
   workflow_dispatch:
