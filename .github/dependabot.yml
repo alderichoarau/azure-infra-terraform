@@ -70,6 +70,15 @@ updates:
       day: "monday"
     open-pull-requests-limit: 5
 
+  - package-ecosystem: "terraform"
+    directory: "/terraform-runner"
+    registries:
+      - hcp-terraform
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:

@@ -36,6 +36,7 @@ jobs:
           - terraform-shared-aks
           - terraform-shared-plan
           - terraform-prometheus
+          - terraform-runner
     defaults:
       run:
         working-directory: ${{ matrix.directory }}
@@ -102,6 +103,10 @@ jobs:
   # failed directory doesn't stop the loop here -- plan is read-only, so showing every directory's
   # plan (or failure) in one comment is more useful to a reviewer than stopping at the first one;
   # the job still ends non-zero (red check) if any directory failed.
+  #
+  # terraform-runner is deliberately excluded from this loop: this job plans against nonprod's
+  # identity/secrets (no `environment:` dimension), but terraform-runner only ever makes sense
+  # against prod (see its own README.md) -- planning it here would just be noise.
   plan:
     name: Plan every directory (PR preview)
     if: github.event_name == 'pull_request'

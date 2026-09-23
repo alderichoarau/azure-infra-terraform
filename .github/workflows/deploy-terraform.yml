@@ -30,6 +30,7 @@ on:
           - terraform-aks-app
           - terraform-prometheus
           - terraform-python
+          - terraform-runner
       action:
         description: "Action to execute on each directory"
         required: true
@@ -67,6 +68,8 @@ env:
   TF_VAR_core_workspace_name: ${{ inputs.environment == 'prod' && 'azure-quiz-core-alderic-hoarau-prod' || 'azure-quiz-core-alderic-hoarau-nonprod' }}
   # terraform-prometheus only.
   TF_VAR_trainer_ip_cidr: ${{ secrets.TRAINER_IP_CIDR }}
+  # terraform-runner only.
+  TF_VAR_runner_admin_ip_cidr: ${{ secrets.RUNNER_ADMIN_IP_CIDR }}
   # Shared-cohort naming convention (rg-shared-prf2026 / plan-npr-prf2026 /
   # prf2026) — no default in any variables.tf on purpose, so this repo's code
   # doesn't hardcode a cohort-specific naming scheme. shared_plan_name and
@@ -96,7 +99,7 @@ jobs:
 
       - name: Validate directory list
         run: |
-          ALLOWED="terraform-core terraform-python terraform-managed-services terraform-aks-app terraform-shared-aks terraform-shared-plan terraform-prometheus"
+          ALLOWED="terraform-core terraform-python terraform-managed-services terraform-aks-app terraform-shared-aks terraform-shared-plan terraform-prometheus terraform-runner"
           for dir in ${{ inputs.directories }}; do
             case " $ALLOWED " in
               *" $dir "*) ;;

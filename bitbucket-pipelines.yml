@@ -19,7 +19,7 @@ pipelines:
           name: Terraform fmt & validate
           script:
             - |
-              for dir in terraform-core terraform-python terraform-managed-services terraform-aks-app terraform-shared-aks terraform-shared-plan terraform-prometheus; do
+              for dir in terraform-core terraform-python terraform-managed-services terraform-aks-app terraform-shared-aks terraform-shared-plan terraform-prometheus terraform-runner; do
                 echo "== $dir =="
                 (cd "$dir" && terraform fmt -check -recursive && terraform init -backend=false && terraform validate)
               done

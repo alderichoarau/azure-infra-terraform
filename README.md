@@ -45,6 +45,7 @@ not currently using:
 | [`terraform-managed-services/`](terraform-managed-services/) | Each learner | `terraform-core`, `terraform-shared-plan` | Postgres, Redis, Key Vault, Java Web App, Angular Static Web App — TP Java/Angular "services managés" |
 | [`terraform-aks-app/`](terraform-aks-app/) | Each learner | `terraform-core`, `terraform-shared-aks` | Container Registry + AcrPull/AcrPush role assignments — TP Java/Angular "AKS" |
 | [`terraform-prometheus/`](terraform-prometheus/) | Each learner (optional) | `terraform-core`, `terraform-python` | Managed Prometheus + Grafana + Prometheus VM — most expensive per-learner resources, kept opt-in |
+| [`terraform-runner/`](terraform-runner/) | Owner only, prod subscription only | `terraform-core` | Self-hosted GitHub Actions runner VM — provisioning only, configured separately by [azure-infra-ansible](https://github.com/alderichoarau/azure-infra-ansible) |
 | [`terraform-shared-plan/`](terraform-shared-plan/) | Trainer, once per cohort | — | The App Service Plan every learner's Python/Java apps share |
 | [`terraform-shared-aks/`](terraform-shared-aks/) | Trainer, per cohort/session | — | The mutualised AKS cluster(s) every learner's AKS track shares |
 | `terraform-legacy-retired/` | Nobody | — | The old monolithic directory, inert (`.tf` → `.tf.retired`), kept only as a "what moved where" map |

@@ -13,6 +13,7 @@ terraform-validate:
           - terraform-shared-aks
           - terraform-shared-plan
           - terraform-prometheus
+          - terraform-runner
   script:
     - cd "$DIRECTORY"
     - terraform fmt -check -recursive

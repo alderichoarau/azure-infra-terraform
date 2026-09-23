@@ -37,6 +37,7 @@ DIRECTORIES=(
   terraform-shared-aks
   terraform-shared-plan
   terraform-prometheus
+  terraform-runner
 )
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
