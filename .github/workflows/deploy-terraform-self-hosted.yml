@@ -1,0 +1,210 @@
+# -----------------------------------------------------------------------------------------------
+# Duplicate of deploy-terraform.yml, running on the self-hosted runner (runner-terraform-1,
+# registered by azure-infra-ansible's run-playbook.yml as a second instance on runner-prod-1's VM)
+# instead of ubuntu-latest -- for comparing apply/destroy timing side by side before deciding
+# whether to switch deploy-terraform.yml itself over. Not a required check.
+# -----------------------------------------------------------------------------------------------
+name: Terraform Deploy (self-hosted)
+run-name: "${{ inputs.action }} · ${{ inputs.directories }} · ${{ inputs.environment }} (self-hosted)"
+
+on:
+  workflow_dispatch:
+    inputs:
+      directories:
+        description: "Directory (or ordered combo) to run"
+        required: true
+        type: choice
+        options:
+          - terraform-core
+          - terraform-shared-plan
+          - terraform-shared-aks
+          - terraform-managed-services
+          - terraform-aks-app
+          - terraform-prometheus
+          - terraform-python
+          - terraform-runner
+      action:
+        description: "Action to execute on each directory"
+        required: true
+        type: choice
+        options:
+          - plan
+          - apply
+          - destroy
+      environment:
+        description: "Which GitHub Environment's secrets/identity to use (see the job's `environment:` below)"
+        required: true
+        type: environment
+        default: nonprod
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  ARM_USE_OIDC: "true"
+  ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+  ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+  ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+  TF_TOKEN_app_terraform_io: ${{ secrets.TF_API_TOKEN }}
+  TF_VAR_automation_only: "true"
+  # Ignored by directories that don't declare a matching variable.
+  TF_VAR_owner: ${{ secrets.AZURE_OWNER }}
+  TF_VAR_resource_group_name: ${{ secrets.AZURE_RG_NAME }}
+  TF_VAR_alert_email: ${{ secrets.AZURE_ALERT_EMAIL }}
+  TF_VAR_app_name: "quiz"
+  # Unset, var.environment would default to "nonprod" regardless of target.
+  TF_VAR_environment: ${{ inputs.environment }}
+  # Without this, a prod run would read nonprod's remote state (wrong
+  # storage/RG) — must match the workspace-isolation step's naming below.
+  TF_VAR_core_workspace_name: ${{ inputs.environment == 'prod' && 'azure-quiz-core-alderic-hoarau-prod' || 'azure-quiz-core-alderic-hoarau-nonprod' }}
+  # terraform-prometheus only.
+  TF_VAR_trainer_ip_cidr: ${{ secrets.TRAINER_IP_CIDR }}
+  # terraform-runner only.
+  TF_VAR_runner_admin_ip_cidr: ${{ secrets.RUNNER_ADMIN_IP_CIDR }}
+  # Shared-cohort naming convention (rg-shared-prf2026 / plan-npr-prf2026 /
+  # prf2026) — no default in any variables.tf on purpose, so this repo's code
+  # doesn't hardcode a cohort-specific naming scheme. shared_plan_name and
+  # plan_name are two different variable names for the same value (consumer
+  # directories vs. terraform-shared-plan itself, which owns the resource) —
+  # both need setting from the one secret. Required by terraform-python,
+  # terraform-managed-services, terraform-aks-app, terraform-shared-plan,
+  # terraform-shared-aks — ignored by terraform-core/terraform-prometheus,
+  # which don't declare these variables.
+  TF_VAR_shared_rg_name: ${{ secrets.AZURE_SHARED_RG_NAME }}
+  TF_VAR_shared_plan_name: ${{ secrets.AZURE_SHARED_PLAN_NAME }}
+  TF_VAR_plan_name: ${{ secrets.AZURE_SHARED_PLAN_NAME }}
+  TF_VAR_cohort: ${{ secrets.AZURE_COHORT }}
+
+jobs:
+  terraform:
+    name: Terraform ${{ inputs.action }} (self-hosted)
+    runs-on: [self-hosted, linux, x64, azure]
+    # Pins the OIDC subject and selects this environment's secrets over the
+    # repo-level fallback (nonprod has none of its own yet, so it still falls
+    # back to the repo-level ones).
+    environment: ${{ inputs.environment }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Validate directory list
+        run: |
+          ALLOWED="terraform-core terraform-python terraform-managed-services terraform-aks-app terraform-shared-aks terraform-shared-plan terraform-prometheus terraform-runner"
+          for dir in ${{ inputs.directories }}; do
+            case " $ALLOWED " in
+              *" $dir "*) ;;
+              *)
+                echo "::error::'$dir' is not a directory this workflow can run ($ALLOWED). terraform-legacy-retired is deliberately excluded — nothing in it is live."
+                exit 1
+                ;;
+            esac
+            if [ ! -d "$dir" ]; then
+              echo "::error::'$dir' does not exist in this repo."
+              exit 1
+            fi
+          done
+
+      - name: Setup Terraform
+        uses: alderichoarau/gha-setup-terraform@v2
+
+      - name: Azure Login (OIDC)
+        uses: alderichoarau/gha-azure-login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Run action on each directory
+        id: run
+        run: |
+          SUMMARY_FILE="$RUNNER_TEMP/summary.md"
+          echo "## Terraform Deploy (self-hosted) — ${{ inputs.action }} (${{ inputs.environment }})" > "$SUMMARY_FILE"
+          echo "- **Environment** : ${{ inputs.environment }}" >> "$SUMMARY_FILE"
+          echo "- **Owner**  : ${{ secrets.AZURE_OWNER }}" >> "$SUMMARY_FILE"
+          echo "- **Branch** : ${{ github.ref_name }}" >> "$SUMMARY_FILE"
+          echo "- **Actor**  : @${{ github.actor }}" >> "$SUMMARY_FILE"
+          echo "" >> "$SUMMARY_FILE"
+
+          STATUS=0
+          for dir in ${{ inputs.directories }}; do
+            # ::group::/::endgroup:: fold this directory's output into its own
+            # named, collapsible section in the Actions log UI -- much easier
+            # to jump to a specific directory than scrolling one long stream.
+            echo "::group::$dir · terraform ${{ inputs.action }}"
+            (
+              cd "$dir"
+              set -e
+
+              # Redirect prod to its own HCP Terraform workspace (nonprod and
+              # prod are separate Azure subscriptions) so it never reads or
+              # writes nonprod's state — applies to every directory, including
+              # the trainer-shared ones, since their state stops being "the
+              # cohort's" the moment a personal prod apply touches it.
+              # Rewrites backend.tf in the checkout only, never committed.
+              if [ "${{ inputs.environment }}" = "prod" ] && [ -f backend.tf ] && grep -q 'workspaces {' backend.tf; then
+                echo "→ prod: redirecting to an isolated HCP Terraform workspace (backend.tf, working copy only)"
+                if grep -qE 'name[[:space:]]*=[[:space:]]*"[^"]*-nonprod"' backend.tf; then
+                  # Swap "-nonprod" for "-prod" instead of appending, to avoid "...-nonprod-prod".
+                  sed -i -E 's/(name[[:space:]]*=[[:space:]]*"[^"]*)-nonprod(")/\1-prod\2/' backend.tf
+                else
+                  sed -i -E 's/(name[[:space:]]*=[[:space:]]*"[^"]+)(")/\1-prod\2/' backend.tf
+                fi
+                grep 'name' backend.tf
+              fi
+
+              # New HCP Terraform workspaces default to Execution Mode "Remote"
+              # (no az CLI there, fails with "az: executable file not found").
+              # Force "Local" so plan/apply run on this runner instead.
+              # Idempotent — GETs/PATCHes or POSTs already-Local. Covers every
+              # directory, not just prod's first run.
+              if [ -f backend.tf ] && grep -q 'workspaces {' backend.tf; then
+                TF_ORG=$(grep -oE 'organization[[:space:]]*=[[:space:]]*"[^"]+"' backend.tf | sed -E 's/.*"([^"]+)".*/\1/')
+                TF_WS=$(grep -oE 'name[[:space:]]*=[[:space:]]*"[^"]+"' backend.tf | sed -E 's/.*"([^"]+)".*/\1/')
+                echo "→ Ensuring HCP Terraform workspace '$TF_WS' (org: $TF_ORG) is set to Local execution mode..."
+                WS_ID=$(curl -s --header "Authorization: Bearer $TF_TOKEN_app_terraform_io" \
+                  "https://app.terraform.io/api/v2/organizations/$TF_ORG/workspaces/$TF_WS" | jq -r '.data.id // empty')
+                if [ -n "$WS_ID" ]; then
+                  curl -s --header "Authorization: Bearer $TF_TOKEN_app_terraform_io" \
+                    --header "Content-Type: application/vnd.api+json" --request PATCH \
+                    --data '{"data":{"type":"workspaces","attributes":{"execution-mode":"local"}}}' \
+                    "https://app.terraform.io/api/v2/workspaces/$WS_ID" > /dev/null
+                  echo "  existing workspace ($WS_ID) confirmed Local."
+                else
+                  curl -s --header "Authorization: Bearer $TF_TOKEN_app_terraform_io" \
+                    --header "Content-Type: application/vnd.api+json" --request POST \
+                    --data "{\"data\":{\"type\":\"workspaces\",\"attributes\":{\"name\":\"$TF_WS\",\"execution-mode\":\"local\"}}}" \
+                    "https://app.terraform.io/api/v2/organizations/$TF_ORG/workspaces" > /dev/null
+                  echo "  created '$TF_WS' already in Local mode."
+                fi
+              fi
+
+              terraform init -input=false
+              terraform fmt -check -recursive
+              terraform validate
+              case "${{ inputs.action }}" in
+                plan)
+                  terraform plan -input=false -out=tfplan -no-color
+                  ;;
+                apply)
+                  terraform apply -input=false -auto-approve -no-color
+                  ;;
+                destroy)
+                  terraform destroy -input=false -auto-approve -no-color
+                  ;;
+              esac
+            )
+            RC=$?
+            echo "::endgroup::"
+            if [ "$RC" -eq 0 ]; then
+              echo "- ✅ \`$dir\`: ${{ inputs.action }} succeeded" >> "$SUMMARY_FILE"
+            else
+              echo "- ❌ \`$dir\`: ${{ inputs.action }} FAILED (exit $RC) — stopping, later directories skipped" >> "$SUMMARY_FILE"
+              STATUS=1
+              break
+            fi
+          done
+
+          cat "$SUMMARY_FILE" >> "$GITHUB_STEP_SUMMARY"
+          exit $STATUS
