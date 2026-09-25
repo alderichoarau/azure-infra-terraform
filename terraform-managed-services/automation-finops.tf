@@ -133,7 +133,7 @@ resource "azurerm_automation_schedule" "stop" {
   automation_account_name = azurerm_automation_account.finops[0].name
   frequency               = "Day"
   interval                = 1
-  timezone                = "UTC"
+  timezone                = "Etc/UTC"
   # Only the time-of-day/timezone matter for ongoing recurrence -- start_time itself just needs
   # to be in the future at apply time, see the lifecycle block below.
   start_time = "2026-09-26T22:00:00Z"
@@ -150,7 +150,7 @@ resource "azurerm_automation_schedule" "start" {
   automation_account_name = azurerm_automation_account.finops[0].name
   frequency               = "Day"
   interval                = 1
-  timezone                = "UTC"
+  timezone                = "Etc/UTC"
   start_time              = "2026-09-26T06:00:00Z"
 
   lifecycle {
