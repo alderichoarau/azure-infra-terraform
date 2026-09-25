@@ -39,19 +39,34 @@ resource "azurerm_role_assignment" "finops_contributor" {
   principal_id         = azurerm_automation_account.finops[0].identity[0].principal_id
 }
 
-# PowerShell 7.2 runtime: Az.Accounts (incl. Invoke-AzRestMethod) is preloaded by default, so
-# this deliberately talks to the ARM REST API directly rather than via Az.PostgreSql/Az.Websites
-# cmdlets -- avoids depending on extra modules that aren't preinstalled and would need their own
-# azurerm_automation_module resources (and the import time/version-pinning that comes with them).
+# Runtime Environment pinning PowerShell 7.4 -- newer than the fixed "PowerShell72" runbook_type
+# enum goes. runbook_type stays the generic "PowerShell" family marker; runtime_environment_name
+# is what actually selects 7.4.
+resource "azurerm_automation_runtime_environment" "powershell74" {
+  count                 = var.environment == "prod" ? 1 : 0
+  name                  = "powershell-7.4"
+  automation_account_id = azurerm_automation_account.finops[0].id
+  location              = var.location
+  runtime_language      = "PowerShell"
+  runtime_version       = "7.4"
+
+  tags = local.tags
+}
+
+# Az.Accounts (incl. Invoke-AzRestMethod) is preloaded by default, so this deliberately talks to
+# the ARM REST API directly rather than via Az.PostgreSql/Az.Websites cmdlets -- avoids depending
+# on extra modules that aren't preinstalled and would need their own package resources (and the
+# import time/version-pinning that comes with them).
 resource "azurerm_automation_runbook" "postgres_app_service_schedule" {
-  count                   = var.environment == "prod" ? 1 : 0
-  name                    = "PostgresAppServiceSchedule"
-  location                = var.location
-  resource_group_name     = data.azurerm_resource_group.rg.name
-  automation_account_name = azurerm_automation_account.finops[0].name
-  log_verbose             = true
-  log_progress            = true
-  runbook_type            = "PowerShell72"
+  count                    = var.environment == "prod" ? 1 : 0
+  name                     = "PostgresAppServiceSchedule"
+  location                 = var.location
+  resource_group_name      = data.azurerm_resource_group.rg.name
+  automation_account_name  = azurerm_automation_account.finops[0].name
+  log_verbose              = true
+  log_progress             = true
+  runbook_type             = "PowerShell"
+  runtime_environment_name = azurerm_automation_runtime_environment.powershell74[0].name
 
   content = <<-POWERSHELL
     param(
@@ -67,22 +82,32 @@ resource "azurerm_automation_runbook" "postgres_app_service_schedule" {
     $pgPath     = "/subscriptions/$SubscriptionId/resourceGroups/$ResourceGroupName/providers/Microsoft.DBforPostgreSQL/flexibleServers/$PostgresServerName"
     $webAppPath = "/subscriptions/$SubscriptionId/resourceGroups/$ResourceGroupName/providers/Microsoft.Web/sites/$WebAppName"
 
+    function Invoke-Checked {
+        param([string]$Path, [string]$Method, [string]$What)
+        $r = Invoke-AzRestMethod -Path $Path -Method $Method
+        if ($r.StatusCode -ge 300) {
+            throw "$What failed (HTTP $($r.StatusCode)): $($r.Content)"
+        }
+        Write-Output "  $What -> HTTP $($r.StatusCode)"
+        return $r
+    }
+
     if ($Action -eq "Stop") {
         Write-Output "Stopping App Service $WebAppName..."
-        Invoke-AzRestMethod -Path "$webAppPath/stop?api-version=2023-12-01" -Method POST | Out-Null
+        Invoke-Checked -Path "$webAppPath/stop?api-version=2023-12-01" -Method POST -What "Stop App Service" | Out-Null
 
         Write-Output "Stopping Postgres $PostgresServerName..."
-        Invoke-AzRestMethod -Path "$pgPath/stop?api-version=2024-08-01" -Method POST | Out-Null
+        Invoke-Checked -Path "$pgPath/stop?api-version=2024-08-01" -Method POST -What "Stop Postgres" | Out-Null
     }
     else {
         Write-Output "Starting Postgres $PostgresServerName..."
-        Invoke-AzRestMethod -Path "$pgPath/start?api-version=2024-08-01" -Method POST | Out-Null
+        Invoke-Checked -Path "$pgPath/start?api-version=2024-08-01" -Method POST -What "Start Postgres" | Out-Null
 
         Write-Output "Waiting for Postgres to be Ready..."
         $ready = $false
         for ($i = 0; $i -lt 30; $i++) {
             Start-Sleep -Seconds 10
-            $resp = Invoke-AzRestMethod -Path "$pgPath`?api-version=2024-08-01" -Method GET
+            $resp = Invoke-Checked -Path "$pgPath`?api-version=2024-08-01" -Method GET -What "Get Postgres state"
             $state = ($resp.Content | ConvertFrom-Json).properties.state
             Write-Output "  state=$state"
             if ($state -eq "Ready") { $ready = $true; break }
@@ -92,7 +117,7 @@ resource "azurerm_automation_runbook" "postgres_app_service_schedule" {
         }
 
         Write-Output "Starting App Service $WebAppName..."
-        Invoke-AzRestMethod -Path "$webAppPath/start?api-version=2023-12-01" -Method POST | Out-Null
+        Invoke-Checked -Path "$webAppPath/start?api-version=2023-12-01" -Method POST -What "Start App Service" | Out-Null
     }
 
     Write-Output "Done: $Action complete."
