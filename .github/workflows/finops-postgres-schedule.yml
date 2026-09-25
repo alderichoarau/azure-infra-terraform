@@ -7,19 +7,11 @@
 # buys nothing) but so the frontend gets a clean, detectable "backend unreachable" signal during
 # this window instead of confusing errors against a dead Postgres -- see
 # BackendAvailabilityService (azure-quiz-frontend) which shows a dedicated banner for it.
-#
-# Cron is always UTC and does not follow DST -- times below are 19:00/05:00 Europe/Paris in
-# summer (CEST, UTC+2); in winter (CET) this fires an hour later Paris time. Same tradeoff already
-# accepted in terraform-cleanup.yml's schedule.
-#
 # -----------------------------------------------------------------------------------------------
 name: "FinOps - Postgres nightly stop/start (prod)"
 run-name: "FinOps · Postgres · ${{ github.event_name == 'workflow_dispatch' && inputs.action || (github.event.schedule == '00 17 * * *' && 'stop' || 'start') }}"
 
 on:
-  schedule:
-    - cron: "00 17 * * *" # 19:00 Europe/Paris (CEST)
-    - cron: "0 3 * * *" # 05:00 Europe/Paris (CEST)
   workflow_dispatch:
     inputs:
       action:
