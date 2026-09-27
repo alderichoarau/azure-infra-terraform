@@ -39,34 +39,21 @@ resource "azurerm_role_assignment" "finops_contributor" {
   principal_id         = azurerm_automation_account.finops[0].identity[0].principal_id
 }
 
-# Runtime Environment pinning PowerShell 7.4 -- newer than the fixed "PowerShell72" runbook_type
-# enum goes. runbook_type stays the generic "PowerShell" family marker; runtime_environment_name
-# is what actually selects 7.4.
-resource "azurerm_automation_runtime_environment" "powershell74" {
-  count                 = var.environment == "prod" ? 1 : 0
-  name                  = "powershell-7.4"
-  automation_account_id = azurerm_automation_account.finops[0].id
-  location              = var.location
-  runtime_language      = "PowerShell"
-  runtime_version       = "7.4"
-
-  tags = local.tags
-}
-
-# Az.Accounts (incl. Invoke-AzRestMethod) is preloaded by default, so this deliberately talks to
-# the ARM REST API directly rather than via Az.PostgreSql/Az.Websites cmdlets -- avoids depending
-# on extra modules that aren't preinstalled and would need their own package resources (and the
-# import time/version-pinning that comes with them).
+# runbook_type "PowerShell72" (not a custom Runtime Environment): Az.Accounts (incl.
+# Invoke-AzRestMethod) is preloaded by default on this fixed type. A custom Runtime Environment
+# (tried briefly for PowerShell 7.4) starts with NO modules at all -- Connect-AzAccount and
+# Invoke-AzRestMethod both failed with "term not recognized" the one time this ran that way.
+# Talking to the ARM REST API directly (vs. Az.PostgreSql/Az.Websites cmdlets) still avoids
+# needing any other extra module.
 resource "azurerm_automation_runbook" "postgres_app_service_schedule" {
-  count                    = var.environment == "prod" ? 1 : 0
-  name                     = "PostgresAppServiceSchedule"
-  location                 = var.location
-  resource_group_name      = data.azurerm_resource_group.rg.name
-  automation_account_name  = azurerm_automation_account.finops[0].name
-  log_verbose              = true
-  log_progress             = true
-  runbook_type             = "PowerShell"
-  runtime_environment_name = azurerm_automation_runtime_environment.powershell74[0].name
+  count                   = var.environment == "prod" ? 1 : 0
+  name                    = "PostgresAppServiceSchedule"
+  location                = var.location
+  resource_group_name     = data.azurerm_resource_group.rg.name
+  automation_account_name = azurerm_automation_account.finops[0].name
+  log_verbose             = true
+  log_progress            = true
+  runbook_type            = "PowerShell72"
 
   content = <<-POWERSHELL
     param(
