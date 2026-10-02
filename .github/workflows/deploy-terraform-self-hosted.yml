@@ -79,7 +79,7 @@ env:
 jobs:
   terraform:
     name: Terraform ${{ inputs.action }} (self-hosted)
-    runs-on: [self-hosted, linux, x64, azure]
+    runs-on: [self-hosted, Linux, X64]
     # Pins the OIDC subject and selects this environment's secrets over the
     # repo-level fallback (nonprod has none of its own yet, so it still falls
     # back to the repo-level ones).
