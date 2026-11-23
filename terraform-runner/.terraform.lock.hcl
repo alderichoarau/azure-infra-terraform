@@ -2,22 +2,22 @@
 # Manual edits may be lost in future updates.
 
 provider "registry.terraform.io/hashicorp/azurerm" {
-  version     = "5.6.0"
+  version     = "5.14.0"
   constraints = "~> 5.5"
   hashes = [
-    "h1:KcCIg3phnZW7/clpgZ6hDnhco6CNh/Hc00nQQZTIBjQ=",
-    "zh:0f4c7b924708dcdf58b7077988549a07dabe6800cef7666a00a0d0ba27aa49d4",
-    "zh:31f6a51d8371b65318485b68ad28cfdf9722ecd4d6754f5deb7c3a4cd59ed421",
-    "zh:359030f6e383a3b7ab8e3c090a1de57aa8841359d23175819cbfb4edbddf7513",
-    "zh:64b3cb711bba8d8f2a82982bcfea964a670d3783ba8ff172ce014b2685505667",
-    "zh:71e8325119404076bd928da7023a135ff55ffaf71caf43de7e7054f322c61fe6",
-    "zh:765e4a88952d037a3f8cded60e986b333ffc7d08ca5314f9cdf2cb030269a53e",
+    "h1:kxss1RxzCoYmJFalzYWp7IngIYdPVxVpNpUBCQQdpF4=",
+    "zh:0b1e9a67dfb43e7fb037f6530e757f80eb182b40088effd2ce8f6a29b71c47f4",
+    "zh:1295f3c1fb3aaf939b23a0a00c2d67e1a0fe63f0cccd2c970221e44624a8bbff",
+    "zh:16e058f24254ed6f63369e9168de418fc78fdcb9ba5d9d182ab22ac7d62be396",
+    "zh:3d33163c6c44245c5525eadcf9c005daddb8f83522b4fd5bcae9c14d763514e2",
     "zh:78d5eefdd9e494defcb3c68d282b8f96630502cac21d1ea161f53cfe9bb483b3",
-    "zh:98d7ef818e156860c09a5c8ce3ad50c3c74123d20ccf67256531bf83da490013",
-    "zh:ad0010a9ab5d3b0dab12747f74598f8af8c961e28d4c5cabaaa0295451e1abdc",
-    "zh:e99f122ca5a3d7e8ec96d092d98f126dc0d02eb3a2e58624f158c3d9fb595c46",
-    "zh:ea9942957c017ecf83d615c9dd146af4ccc8b7603416a6a145d0cdc124c2971c",
-    "zh:f82cee45dfc0708334d1d1861037f35b47423d19cbdc5cf75992cb6abf9e224e",
+    "zh:a80e54eb725eaa775b5517db63e1c55568bef1c95665fef15e32e76b5af4a674",
+    "zh:af5fb06ebe4135a0cf9f8a297f827e6905689a0877f49eda3bac034bc36bf45e",
+    "zh:c7cc517f9cdae8f3cacc2af7965a3ef0c74e5c79552a5834e0c6b85b6fe2f530",
+    "zh:cd0509974ee212aec6ba29a071ba3dc1c3bfe69ab4c38a4ab05e0fc45a24192f",
+    "zh:de704531c98016662ba8a0e5646195b07ebae97f288f87b32c920182448abbe5",
+    "zh:ef2f4f1de2902699dc623751a7c392500cf386cf289c1e022e74a6ccf5605240",
+    "zh:f9edd3ea37a31ddb180c238feb186c3d03d855b942c3d27299843ccf33ad2a58",
   ]
 }
 
